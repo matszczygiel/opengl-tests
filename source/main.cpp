@@ -106,8 +106,8 @@ int main()
 
     GLFWwindow *window;
     glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     window = glfwCreateWindow(window_width, window_height, "Hello World", nullptr, nullptr);
     if (!window)
@@ -118,8 +118,13 @@ int main()
 
     glfwMakeContextCurrent(window);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-    glfwSwapInterval(1);
 
+    std::cout << "OpenGL Info\n";
+    std::cout << "  Vendor:   " << glGetString(GL_VENDOR) << '\n';
+    std::cout << "  Renderer: " << glGetString(GL_RENDERER) << '\n';
+    std::cout << "  Version:  " << glGetString(GL_VERSION) << '\n';
+
+    glfwSwapInterval(1);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
 
