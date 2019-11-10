@@ -13,6 +13,7 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
 
 find_package(glfw3 3.3 REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(glm REQUIRED)
 
 add_executable(gl_test ${sources})
 
@@ -26,5 +27,5 @@ target_compile_options(gl_test
 
 target_link_libraries(gl_test 
                         PRIVATE 
-                        glfw ${CMAKE_DL_LIBS} glad OpenGL::OpenGL)                                
+                        glfw ${CMAKE_DL_LIBS} glad OpenGL::OpenGL glm)                                
                                             
