@@ -1,5 +1,8 @@
 #include <iostream>
 #include <tuple>
+#include <string>
+#include <fstream>
+#include <vector>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -91,6 +94,67 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
     return std::make_tuple(view, proj);
 }
 
+GLuint loadBMP(std::string_view imagepath)
+{
+    std::ifstream file(imagepath.data(), std::ios::binary);
+
+    if (!file)
+    {
+        std::cout << "File " << imagepath << " could not be opened\n";
+        return 0;
+    }
+
+    char header[54];
+    if (file.readsome(&header[0], std::size(header)) != 54)
+    {
+        std::cout << "Not a correct BMP file\n";
+        return 0;
+    }
+
+    if (header[0] != 'B' || header[1] != 'M')
+    {
+        std::cout << "Not a correct BMP file\n";
+        return 0;
+    }
+    if (*reinterpret_cast<int *>(&header[0x1E]) != 0)
+    {
+        std::cout << "Not a correct BMP file\n";
+        return 0;
+    }
+    if (*reinterpret_cast<int *>(&header[0x1C]) != 24)
+    {
+        std::cout << "Not a correct BMP file\n";
+        return 0;
+    }
+
+    int data_pos = *reinterpret_cast<int *>(&header[0x0A]);
+    int image_size = *reinterpret_cast<int *>(&header[0x22]);
+    int width = *reinterpret_cast<int *>(&header[0x12]);
+    int height = *reinterpret_cast<int *>(&header[0x16]);
+
+    if (image_size == 0)
+        image_size = width * height * 3;
+    if (data_pos == 0)
+        data_pos = 54;
+
+    std::vector<char> data(image_size);
+    file.read(data.data(), image_size);
+    file.close();
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data.data());
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    return texture;
+}
+
 int main()
 {
 
@@ -135,28 +199,30 @@ int main()
 
     constexpr auto vertex_shader_text = R"(
         #version 330 core
-        layout(location = 0) in vec3 vpos;
-        layout(location = 1) in vec3 vcol;
+        layout(location = 0) in vec3 vertex_pos;
+        layout(location = 1) in vec2 vertex_uv;
 
-        out vec3 frag_col;
+        out vec2 uv;
 
         uniform mat4 MVP;
 
         void main()
         {  
-            gl_Position = MVP * vec4(vpos, 1.0);
-            frag_col = vcol;
+            gl_Position = MVP * vec4(vertex_pos, 1.0);
+            uv = vertex_uv;
         }
         )";
     constexpr auto fragment_shader_text = R"(
         #version 330 core
         
-        in vec3 frag_col;
+        in vec2 uv;
         
         out vec3 color;
         
+        uniform sampler2D texture_samp;
+
         void main(){
-          color = frag_col;
+          color = texture( texture_samp, uv ).rgb;
         }
         )";
 
@@ -177,81 +243,59 @@ int main()
     glDeleteShader(fragment_shader);
 
     constexpr float vertices[] = {
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f};
+        -1.0f, -1.0f, 0.0f,
+        1.0f, -1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
 
-    constexpr float colors[] = {
-        0.583f, 0.771f, 0.014f,
-        0.609f, 0.115f, 0.436f,
-        0.327f, 0.483f, 0.844f,
-        0.822f, 0.569f, 0.201f,
-        0.435f, 0.602f, 0.223f,
-        0.310f, 0.747f, 0.185f,
-        0.597f, 0.770f, 0.761f,
-        0.559f, 0.436f, 0.730f,
-        0.359f, 0.583f, 0.152f,
-        0.483f, 0.596f, 0.789f,
-        0.559f, 0.861f, 0.639f,
-        0.195f, 0.548f, 0.859f,
-        0.014f, 0.184f, 0.576f,
-        0.771f, 0.328f, 0.970f,
-        0.406f, 0.615f, 0.116f,
-        0.676f, 0.977f, 0.133f,
-        0.971f, 0.572f, 0.833f,
-        0.140f, 0.616f, 0.489f,
-        0.997f, 0.513f, 0.064f,
-        0.945f, 0.719f, 0.592f,
-        0.543f, 0.021f, 0.978f,
-        0.279f, 0.317f, 0.505f,
-        0.167f, 0.620f, 0.077f,
-        0.347f, 0.857f, 0.137f,
-        0.055f, 0.953f, 0.042f,
-        0.714f, 0.505f, 0.345f,
-        0.783f, 0.290f, 0.734f,
-        0.722f, 0.645f, 0.174f,
-        0.302f, 0.455f, 0.848f,
-        0.225f, 0.587f, 0.040f,
-        0.517f, 0.713f, 0.338f,
-        0.053f, 0.959f, 0.120f,
-        0.393f, 0.621f, 0.362f,
-        0.673f, 0.211f, 0.457f,
-        0.820f, 0.883f, 0.371f,
-        0.982f, 0.099f, 0.879f};
+        //cube
+        /*
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f
+        */
+    };
 
+    constexpr float uv_coords[] = {
+        0.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+        0.5f,
+        1.0f,
+    };
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
@@ -264,7 +308,9 @@ int main()
     GLuint color_buffer;
     glGenBuffers(1, &color_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(uv_coords), uv_coords, GL_STATIC_DRAW);
+
+    const auto texture = loadBMP("textures/uvtemplate.bmp");
 
     const auto mvp_id = glGetUniformLocation(program, "MVP");
 
@@ -285,7 +331,7 @@ int main()
 
         glEnableVertexAttribArray(1);
         glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
         glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices) / sizeof(float) / 3);
 
@@ -302,6 +348,7 @@ int main()
 
     glDeleteBuffers(1, &vertex_buffer);
     glDeleteBuffers(1, &color_buffer);
+    glDeleteTextures(1, &texture);
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
 
