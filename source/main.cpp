@@ -10,6 +10,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "functions.h"
+
 std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
 {
     static auto last_time = glfwGetTime();
@@ -94,67 +96,6 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
     return std::make_tuple(view, proj);
 }
 
-GLuint loadBMP(std::string_view imagepath)
-{
-    std::ifstream file(imagepath.data(), std::ios::binary);
-
-    if (!file)
-    {
-        std::cout << "File " << imagepath << " could not be opened\n";
-        return 0;
-    }
-
-    char header[54];
-    if (file.readsome(&header[0], std::size(header)) != 54)
-    {
-        std::cout << "Not a correct BMP file\n";
-        return 0;
-    }
-
-    if (header[0] != 'B' || header[1] != 'M')
-    {
-        std::cout << "Not a correct BMP file\n";
-        return 0;
-    }
-    if (*reinterpret_cast<int *>(&header[0x1E]) != 0)
-    {
-        std::cout << "Not a correct BMP file\n";
-        return 0;
-    }
-    if (*reinterpret_cast<int *>(&header[0x1C]) != 24)
-    {
-        std::cout << "Not a correct BMP file\n";
-        return 0;
-    }
-
-    int data_pos = *reinterpret_cast<int *>(&header[0x0A]);
-    int image_size = *reinterpret_cast<int *>(&header[0x22]);
-    int width = *reinterpret_cast<int *>(&header[0x12]);
-    int height = *reinterpret_cast<int *>(&header[0x16]);
-
-    if (image_size == 0)
-        image_size = width * height * 3;
-    if (data_pos == 0)
-        data_pos = 54;
-
-    std::vector<char> data(image_size);
-    file.read(data.data(), image_size);
-    file.close();
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data.data());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    return texture;
-}
-
 int main()
 {
 
@@ -171,7 +112,7 @@ int main()
     GLFWwindow *window;
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     window = glfwCreateWindow(window_width, window_height, "Hello World", nullptr, nullptr);
     if (!window)
@@ -197,105 +138,8 @@ int main()
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
 
-    constexpr auto vertex_shader_text = R"(
-        #version 330 core
-        layout(location = 0) in vec3 vertex_pos;
-        layout(location = 1) in vec2 vertex_uv;
+    const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
 
-        out vec2 uv;
-
-        uniform mat4 MVP;
-
-        void main()
-        {  
-            gl_Position = MVP * vec4(vertex_pos, 1.0);
-            uv = vertex_uv;
-        }
-        )";
-    constexpr auto fragment_shader_text = R"(
-        #version 330 core
-        
-        in vec2 uv;
-        
-        out vec3 color;
-        
-        uniform sampler2D texture_samp;
-
-        void main(){
-          color = texture( texture_samp, uv ).rgb;
-        }
-        )";
-
-    const auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_text, nullptr);
-    glCompileShader(vertex_shader);
-    const auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_text, nullptr);
-    glCompileShader(fragment_shader);
-    const auto program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    glDetachShader(program, vertex_shader);
-    glDetachShader(program, fragment_shader);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    constexpr float vertices[] = {
-        -1.0f, -1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-
-        //cube
-        /*
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, -1.0f,
-        -1.0f, 1.0f, -1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, -1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f
-        */
-    };
-
-    constexpr float uv_coords[] = {
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.5f,
-        1.0f,
-    };
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
