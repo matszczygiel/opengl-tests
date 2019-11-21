@@ -186,17 +186,11 @@ bool loadOBJ(
             {
                 std::getline(file >> std::ws, str, '/');
                 vertex_ind.push_back(std::stoi(str));
-            }
 
-            for (int i = 0; i < 3; ++i)
-            {
                 std::getline(file >> std::ws, str, '/');
                 uv_ind.push_back(std::stoi(str));
-            }
 
-            for (int i = 0; i < 3; ++i)
-            {
-                std::getline(file >> std::ws, str, '/');
+                file >> std::ws >> str;
                 normal_ind.push_back(std::stoi(str));
             }
         }
@@ -206,11 +200,11 @@ bool loadOBJ(
         }
     }
 
-    for (unsigned int i = 0; i < vertex_ind.size(); i++)
+    for (unsigned int i = 0; i < vertex_ind.size(); ++i)
     {
-        glm::vec3 vertex = temp_vertices[vertex_ind[i] - 1];
-        glm::vec2 uv = temp_uvs[uv_ind[i] - 1];
-        glm::vec3 normal = temp_normals[normal_ind[i] - 1];
+        const glm::vec3 &vertex = temp_vertices[vertex_ind[i] - 1];
+        const glm::vec2 &uv = temp_uvs[uv_ind[i] - 1];
+        const glm::vec3 &normal = temp_normals[normal_ind[i] - 1];
 
         out_vertices.push_back(vertex);
         out_uvs.push_back(uv);
@@ -257,7 +251,6 @@ GLuint loadDDS(const std::string_view imagepath)
     constexpr unsigned int fourcc_DXT3 = 0x33545844; // Equivalent to "DXT3" in ASCII
     constexpr unsigned int fourcc_DXT5 = 0x35545844; // Equivalent to "DXT5" in ASCII
 
-    const unsigned int components = (fourcc == fourcc_DXT1) ? 3 : 4;
     unsigned int format;
     switch (fourcc)
     {
