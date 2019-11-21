@@ -138,10 +138,6 @@ int main()
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
 
-    const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
-    const auto mvp_uniform = glGetUniformLocation(program, "MVP");
-    const auto texture_samp = glGetUniformLocation(program, "texture_samp");
-
     const auto texture_id = loadDDS("resources/uvmap.DDS");
 
     GLuint vertex_array;
@@ -151,7 +147,7 @@ int main()
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> uvs;
     std::vector<glm::vec3> normals;
-    bool res = loadOBJ("resources/cube.obj", vertices, uvs, normals);
+    bool res = loadOBJ("resources/suzanne.obj", vertices, uvs, normals);
 
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
@@ -163,6 +159,25 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
     glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
 
+    GLuint normal_buffer;
+    glGenBuffers(1, &normal_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), normals.data(), GL_STATIC_DRAW);
+
+    const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
+    const auto mvp_uniform = glGetUniformLocation(program, "MVP");
+    const auto mv_uniform = glGetUniformLocation(program, "MV");
+    const auto v_uniform = glGetUniformLocation(program, "V");
+    const auto m_uniform = glGetUniformLocation(program, "M");
+    const auto texture_samp_uniform = glGetUniformLocation(program, "texture_samp");
+    const auto light_pos_uniform = glGetUniformLocation(program, "light_pos_worldspace");
+    const auto light_color_uniform = glGetUniformLocation(program, "light_color");
+    const auto light_power_uniform = glGetUniformLocation(program, "light_power");
+
+    auto light_position = glm::vec3(4.0, 4.0, 4.0);
+    auto light_color = glm::vec3(1.0, 0.8, 0.8);
+    auto light_power = 100.0f;
+
     while (!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -170,12 +185,22 @@ int main()
         glUseProgram(program);
 
         const auto [view, projection] = matrices_from_input(window);
-        const auto mvp = projection * view * glm::mat4(1.0f);
+        const auto model = glm::mat4(1.0f);
+        const auto mv = view * model;
+        const auto mvp = projection * mv;
 
         glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniformMatrix4fv(mv_uniform, 1, GL_FALSE, glm::value_ptr(mv));
+        glUniformMatrix4fv(v_uniform, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(m_uniform, 1, GL_FALSE, glm::value_ptr(model));
+
+        glUniform3f(light_pos_uniform, light_position.x, light_position.y, light_position.z);
+        glUniform3f(light_color_uniform, light_color.r, light_color.g, light_color.b);
+        glUniform1f(light_power_uniform, light_power);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_id);
-        glUniform1i(texture_samp, 0);
+        glUniform1i(texture_samp_uniform, 0);
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -185,10 +210,15 @@ int main()
         glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
+        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
         glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
 
         glfwSwapBuffers(window);
 
@@ -200,6 +230,7 @@ int main()
 
     glDeleteBuffers(1, &vertex_buffer);
     glDeleteBuffers(1, &uv_buffer);
+    glDeleteBuffers(1, &normal_buffer);
     glDeleteTextures(1, &texture_id);
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
