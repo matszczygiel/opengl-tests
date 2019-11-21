@@ -150,7 +150,7 @@ bool loadOBJ(
     std::vector<glm::vec2> temp_uvs;
     std::vector<glm::vec3> temp_normals;
 
-    std::ifstream file(path, std::ios::in);
+    std::ifstream file(path.data(), std::ios::in);
     if (!file.is_open())
     {
         std::cout << "Impossible to open the file !";
@@ -224,9 +224,9 @@ bool loadOBJ(
 GLuint loadDDS(const std::string_view imagepath)
 {
 
-    std::cout << "Loading OBJ file" << path << "...\n";
+    std::cout << "Loading OBJ file" << imagepath << "...\n";
 
-    std::ifstream file(path, std::ios::in | std::ios::binary);
+    std::ifstream file(imagepath.data(), std::ios::in | std::ios::binary);
     if (!file.is_open())
     {
         std::cout << "Impossible to open the file !";
@@ -239,20 +239,6 @@ GLuint loadDDS(const std::string_view imagepath)
         return 0;
     }
 
-    FILE *fp;
-
-    /* try to open the file */
-    fp = fopen(imagepath, "rb");
-    if (fp == NULL)
-    {
-        printf("%s could not be opened. Are you in the right directory ? Don't forget to read the FAQ !\n", imagepath);
-        getchar();
-        return 0;
-    }
-
-    /* get the surface desc */
-    fread(&header, 124, 1, fp);
-
     char header[124];
     file.read(header, sizeof(header));
 
@@ -262,67 +248,55 @@ GLuint loadDDS(const std::string_view imagepath)
     unsigned int mipmap_count = *reinterpret_cast<unsigned int *>(&header[24]);
     unsigned int fourcc = *reinterpret_cast<unsigned int *>(&header[80]);
 
-    unsigned char *buffer;
-    unsigned int bufsize;
-    /* how big is it going to be including all mipmaps? */
-    bufsize = mipMapCount > 1 ? linearSize * 2 : linearSize;
-    buffer = (unsigned char *)malloc(bufsize * sizeof(unsigned char));
-    fread(buffer, 1, bufsize, fp);
-    /* close the file pointer */
-    fclose(fp);
+    const auto bufsize = mipmap_count > 1 ? linear_size * 2 : linear_size;
+    std::string buffer(bufsize, '\0');
+    file.read(&buffer[0], bufsize);
+    file.close();
 
-    constexpr unsigned int fourcc_DXT1 0x31545844; // Equivalent to "DXT1" in ASCII
-    constexpr unsigned int fourcc_DXT3 0x33545844; // Equivalent to "DXT3" in ASCII
-    constexpr unsigned int fourcc_DXT5 0x35545844; // Equivalent to "DXT5" in ASCII
+    constexpr unsigned int fourcc_DXT1 = 0x31545844; // Equivalent to "DXT1" in ASCII
+    constexpr unsigned int fourcc_DXT3 = 0x33545844; // Equivalent to "DXT3" in ASCII
+    constexpr unsigned int fourcc_DXT5 = 0x35545844; // Equivalent to "DXT5" in ASCII
 
-    unsigned int components = (fourCC == FOURCC_DXT1) ? 3 : 4;
+    const unsigned int components = (fourcc == fourcc_DXT1) ? 3 : 4;
     unsigned int format;
-    switch (fourCC)
+    switch (fourcc)
     {
-    case FOURCC_DXT1:
+    case fourcc_DXT1:
         format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
         break;
-    case FOURCC_DXT3:
+    case fourcc_DXT3:
         format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
         break;
-    case FOURCC_DXT5:
+    case fourcc_DXT5:
         format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
         break;
     default:
-        free(buffer);
         return 0;
     }
 
-    // Create one OpenGL texture
     GLuint textureID;
     glGenTextures(1, &textureID);
 
-    // "Bind" the newly created texture : all future texture functions will modify this texture
     glBindTexture(GL_TEXTURE_2D, textureID);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     unsigned int blockSize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
     unsigned int offset = 0;
 
-    /* load the mipmaps */
-    for (unsigned int level = 0; level < mipMapCount && (width || height); ++level)
+    for (unsigned int level = 0; level < mipmap_count && (width || height); ++level)
     {
-        unsigned int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+        const auto size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
         glCompressedTexImage2D(GL_TEXTURE_2D, level, format, width, height,
-                               0, size, buffer + offset);
+                               0, size, &buffer[offset]);
 
         offset += size;
         width /= 2;
         height /= 2;
 
-        // Deal with Non-Power-Of-Two textures. This code is not included in the webpage to reduce clutter.
         if (width < 1)
             width = 1;
         if (height < 1)
             height = 1;
     }
-
-    free(buffer);
-
     return textureID;
 }

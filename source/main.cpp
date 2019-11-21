@@ -139,24 +139,29 @@ int main()
     glEnable(GL_CULL_FACE);
 
     const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
+    const auto mvp_uniform = glGetUniformLocation(program, "MVP");
+    const auto texture_samp = glGetUniformLocation(program, "texture_samp");
+
+    const auto texture_id = loadDDS("resources/uvmap.DDS");
 
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
 
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec2> uvs;
+    std::vector<glm::vec3> normals;
+    bool res = loadOBJ("resources/cube.obj", vertices, uvs, normals);
+
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
 
-    GLuint color_buffer;
-    glGenBuffers(1, &color_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(uv_coords), uv_coords, GL_STATIC_DRAW);
-
-    const auto texture = loadBMP("textures/uvtemplate.bmp");
-
-    const auto mvp_id = glGetUniformLocation(program, "MVP");
+    GLuint uv_buffer;
+    glGenBuffers(1, &uv_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -167,17 +172,20 @@ int main()
         const auto [view, projection] = matrices_from_input(window);
         const auto mvp = projection * view * glm::mat4(1.0f);
 
-        glUniformMatrix4fv(mvp_id, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        glUniform1i(texture_samp, 0);
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
         glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, color_buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, uv_buffer);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
-        glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices) / sizeof(float) / 3);
+        glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
@@ -191,8 +199,8 @@ int main()
     }
 
     glDeleteBuffers(1, &vertex_buffer);
-    glDeleteBuffers(1, &color_buffer);
-    glDeleteTextures(1, &texture);
+    glDeleteBuffers(1, &uv_buffer);
+    glDeleteTextures(1, &texture_id);
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
 
