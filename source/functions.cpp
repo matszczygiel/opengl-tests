@@ -312,3 +312,58 @@ GLuint loadDDS(const std::string_view imagepath)
     }
     return textureID;
 }
+
+void compute_tangent_basis(
+    const std::vector<glm::vec3> &in_vertices,
+    const std::vector<glm::vec2> &in_uvs,
+    const std::vector<glm::vec3> &in_normals,
+    const std::vector<unsigned int> &in_indices,
+    std::vector<glm::vec3> &out_tangents,
+    std::vector<glm::vec3> &out_bitangents)
+{
+    out_tangents.resize(in_vertices.size(), glm::vec3(0.0, 0.0, 0.0));
+    out_bitangents.resize(in_vertices.size(), glm::vec3(0.0, 0.0, 0.0));
+
+    for (int i = 0; i < in_indices.size(); i += 3)
+    {
+        const glm::vec3 &v0 = in_vertices[in_indices[i + 0]];
+        const glm::vec3 &v1 = in_vertices[in_indices[i + 1]];
+        const glm::vec3 &v2 = in_vertices[in_indices[i + 2]];
+
+        const glm::vec2 &uv0 = in_uvs[in_indices[i + 0]];
+        const glm::vec2 &uv1 = in_uvs[in_indices[i + 1]];
+        const glm::vec2 &uv2 = in_uvs[in_indices[i + 2]];
+
+        const glm::vec3 deltaPos1 = v1 - v0;
+        const glm::vec3 deltaPos2 = v2 - v0;
+
+        const glm::vec2 deltaUV1 = uv1 - uv0;
+        const glm::vec2 deltaUV2 = uv2 - uv0;
+
+        const float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+        const glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+        const glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
+
+        out_tangents[in_indices[i + 0]] += tangent;
+        out_tangents[in_indices[i + 1]] += tangent;
+        out_tangents[in_indices[i + 2]] += tangent;
+
+        out_bitangents[in_indices[i + 0]] += bitangent;
+        out_bitangents[in_indices[i + 1]] += bitangent;
+        out_bitangents[in_indices[i + 2]] += bitangent;
+    }
+
+    for (unsigned int i = 0; i < in_vertices.size(); ++i)
+    {
+        const glm::vec3 &n = in_normals[i];
+        glm::vec3 &t = out_tangents[i];
+        glm::vec3 &b = out_bitangents[i];
+
+        t = glm::normalize(t - n * glm::dot(n, t));
+
+        if (glm::dot(glm::cross(n, t), b) < 0.0f)
+        {
+            t *= -1.0f;
+        }
+    }
+}
