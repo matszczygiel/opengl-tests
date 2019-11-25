@@ -5,6 +5,8 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <map>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -140,12 +142,13 @@ bool loadOBJ(
     const std::string_view path,
     std::vector<glm::vec3> &out_vertices,
     std::vector<glm::vec2> &out_uvs,
-    std::vector<glm::vec3> &out_normals)
+    std::vector<glm::vec3> &out_normals,
+    std::vector<unsigned int> &out_indexes)
 {
 
     std::cout << "Loading OBJ file" << path << "...\n";
 
-    std::vector<unsigned int> vertex_ind, uv_ind, normal_ind;
+    std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> vertex_ind;
     std::vector<glm::vec3> temp_vertices;
     std::vector<glm::vec2> temp_uvs;
     std::vector<glm::vec3> temp_normals;
@@ -181,17 +184,14 @@ bool loadOBJ(
         }
         else if (word == "f")
         {
-            std::string str;
+            std::string strv, stru, strn;
             for (int i = 0; i < 3; ++i)
             {
-                std::getline(file >> std::ws, str, '/');
-                vertex_ind.push_back(std::stoi(str));
+                std::getline(file >> std::ws, strv, '/');
+                std::getline(file >> std::ws, stru, '/');
+                file >> std::ws >> strn;
 
-                std::getline(file >> std::ws, str, '/');
-                uv_ind.push_back(std::stoi(str));
-
-                file >> std::ws >> str;
-                normal_ind.push_back(std::stoi(str));
+                vertex_ind.push_back({std::stoi(strv) - 1, std::stoi(stru) - 1, std::stoi(strn) - 1});
             }
         }
         else
@@ -200,15 +200,34 @@ bool loadOBJ(
         }
     }
 
-    for (unsigned int i = 0; i < vertex_ind.size(); ++i)
-    {
-        const glm::vec3 &vertex = temp_vertices[vertex_ind[i] - 1];
-        const glm::vec2 &uv = temp_uvs[uv_ind[i] - 1];
-        const glm::vec3 &normal = temp_normals[normal_ind[i] - 1];
+    out_vertices.clear();
+    out_uvs.clear();
+    out_normals.clear();
+    out_indexes.clear();
 
-        out_vertices.push_back(vertex);
-        out_uvs.push_back(uv);
-        out_normals.push_back(normal);
+    std::map<std::tuple<unsigned int, unsigned int, unsigned int>, unsigned int> used_indices{};
+
+    unsigned int index = 0;
+    for (auto it = vertex_ind.begin(); it != vertex_ind.end(); ++it)
+    {
+        auto i = used_indices.find(*it);
+        if (i == used_indices.end())
+        {
+            const auto &[vi, ui, ni] = *it;
+            const glm::vec3 &vertex = temp_vertices[vi];
+            const glm::vec2 &uv = temp_uvs[ui];
+            const glm::vec3 &normal = temp_normals[ni];
+
+            out_vertices.push_back(vertex);
+            out_uvs.push_back(uv);
+            out_normals.push_back(normal);
+            out_indexes.push_back(index);
+            used_indices[*it] = index++;
+        }
+        else
+        {
+            out_indexes.push_back(i->second);
+        }
     }
 
     file.close();

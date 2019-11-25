@@ -3,6 +3,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <chrono>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -147,7 +148,8 @@ int main()
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> uvs;
     std::vector<glm::vec3> normals;
-    bool res = loadOBJ("resources/suzanne.obj", vertices, uvs, normals);
+    std::vector<unsigned int> indices;
+    bool res = loadOBJ("resources/suzanne.obj", vertices, uvs, normals, indices);
 
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
@@ -164,6 +166,11 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
     glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), normals.data(), GL_STATIC_DRAW);
 
+    GLuint index_buffer;
+    glGenBuffers(1, &index_buffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
     const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
     const auto mvp_uniform = glGetUniformLocation(program, "MVP");
     const auto mv_uniform = glGetUniformLocation(program, "MV");
@@ -178,6 +185,7 @@ int main()
     auto light_color = glm::vec3(1.0, 0.8, 0.8);
     auto light_power = 100.0f;
 
+    auto start = std::chrono::system_clock::now();
     while (!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -214,7 +222,9 @@ int main()
         glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, (void *)0);
 
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
@@ -226,11 +236,17 @@ int main()
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             break;
+
+        const auto end = std::chrono::system_clock::now();
+        const auto delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        start = end;
+        std::cout << delta_time.count() << "ms\n";
     }
 
     glDeleteBuffers(1, &vertex_buffer);
     glDeleteBuffers(1, &uv_buffer);
     glDeleteBuffers(1, &normal_buffer);
+    glDeleteBuffers(1, &index_buffer);
     glDeleteTextures(1, &texture_id);
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
