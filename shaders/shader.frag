@@ -38,7 +38,4 @@ void main(){
     material_ambient_color + 
     material_diffuse_color * light_color * light_power * cos_theta / (dist * dist) +
     material_specular_color * light_color * light_power * pow(cos_alpha, 5) / (dist * dist);
-
-    color = vec3(0.8, 0.0, 0.0);
-
 }
