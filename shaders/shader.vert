@@ -9,7 +9,6 @@ out vec2 uv;
 out vec3 positon_worldspace;
 out vec3 eyedir_cameraspace;
 out vec3 lightdir_cameraspace;
-
 out vec3 eyedir_tangentspace;
 out vec3 lightdir_tangentspace;
 
@@ -34,7 +33,7 @@ void main()
     vec3 lightpos_cameraspace = (V * vec4(light_pos_worldspace, 1.0)).xyz;
     lightdir_cameraspace = lightpos_cameraspace + eyedir_cameraspace;
 
-    normal_cameraspace = MV3 * normal_modelspace;
+    vec3 normal_cameraspace = MV3 * normal_modelspace;
 	vec3 tangent_cameraspace = MV3 * tangent_modelspace;
 	vec3 bitangent_cameraspace = MV3 * bitangent_modelspace;
 	

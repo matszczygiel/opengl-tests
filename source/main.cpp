@@ -136,7 +136,7 @@ int main()
 
     GLFWwindow *window;
     glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     window = glfwCreateWindow(window_width, window_height, "Hello World", nullptr, nullptr);
@@ -160,8 +160,8 @@ int main()
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-//    glEnable(GL_DEBUG_OUTPUT);
-//    glDebugMessageCallback(msg_callback, 0);
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(msg_callback, 0);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -218,8 +218,8 @@ int main()
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
     const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
+    glUseProgram(program);
     const auto mvp_uniform = glGetUniformLocation(program, "MVP");
-    const auto mv_uniform = glGetUniformLocation(program, "MV");
     const auto mv3_uniform = glGetUniformLocation(program, "MV3");
     const auto v_uniform = glGetUniformLocation(program, "V");
     const auto m_uniform = glGetUniformLocation(program, "M");
@@ -238,6 +238,7 @@ int main()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        glBindVertexArray(vertex_array);
         glUseProgram(program);
 
         const auto [view, projection] = matrices_from_input(window);
@@ -247,7 +248,6 @@ int main()
         const auto mv3 = glm::mat3(mv);
 
         glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
-        glUniformMatrix4fv(mv_uniform, 1, GL_FALSE, glm::value_ptr(mv));
         glUniformMatrix4fv(v_uniform, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(m_uniform, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix3fv(mv3_uniform, 1, GL_FALSE, glm::value_ptr(mv3));
@@ -313,8 +313,10 @@ int main()
     glDeleteBuffers(1, &tangent_buffer);
     glDeleteBuffers(1, &bitangent_buffer);
     glDeleteBuffers(1, &index_buffer);
+
     glDeleteTextures(1, &texture_id);
     glDeleteTextures(1, &normal_texture_id);
+
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
 

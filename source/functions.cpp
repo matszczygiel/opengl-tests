@@ -324,7 +324,7 @@ void compute_tangent_basis(
     out_tangents.resize(in_vertices.size(), glm::vec3(0.0, 0.0, 0.0));
     out_bitangents.resize(in_vertices.size(), glm::vec3(0.0, 0.0, 0.0));
 
-    for (int i = 0; i < in_indices.size(); i += 3)
+    for (size_t i = 0; i < in_indices.size(); i += 3)
     {
         const glm::vec3 &v0 = in_vertices[in_indices[i + 0]];
         const glm::vec3 &v1 = in_vertices[in_indices[i + 1]];

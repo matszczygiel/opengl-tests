@@ -12,8 +12,6 @@ out vec3 color;
         
 uniform sampler2D texture_samp;
 uniform sampler2D normal_texture_samp;
-uniform mat4 MV;
-uniform mat4 MV3;
 uniform vec3 light_pos_worldspace;
 uniform vec3 light_color;
 uniform float light_power;
