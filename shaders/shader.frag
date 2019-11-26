@@ -12,6 +12,7 @@ out vec3 color;
         
 uniform sampler2D texture_samp;
 uniform sampler2D normal_texture_samp;
+uniform sampler2D specular_texture_samp;
 uniform vec3 light_pos_worldspace;
 uniform vec3 light_color;
 uniform float light_power;
@@ -20,7 +21,7 @@ void main(){
 
     vec3 material_diffuse_color = texture(texture_samp, uv).rgb;
     vec3 material_ambient_color = 0.1 * material_diffuse_color;
-    vec3 material_specular_color = vec3(0.3, 0.3, 0.3);
+    vec3 material_specular_color = 0.3 * texture(specular_texture_samp, uv).rgb;
 
     float dist = length(light_pos_worldspace - positon_worldspace);
 

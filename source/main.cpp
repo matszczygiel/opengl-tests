@@ -169,6 +169,7 @@ int main()
 
     const auto texture_id = loadDDS("resources/diffuse.DDS");
     const auto normal_texture_id = loadBMP("resources/normal.bmp");
+    const auto specular_texture_id = loadBMP("resources/specular.DDS");
 
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
@@ -223,13 +224,14 @@ int main()
     const auto m_uniform = glGetUniformLocation(program, "M");
     const auto texture_samp_uniform = glGetUniformLocation(program, "texture_samp");
     const auto normal_texture_samp_uniform = glGetUniformLocation(program, "normal_texture_samp");
+    const auto specular_texture_samp_uniform = glGetUniformLocation(program, "specular_texture_samp");
     const auto light_pos_uniform = glGetUniformLocation(program, "light_pos_worldspace");
     const auto light_color_uniform = glGetUniformLocation(program, "light_color");
     const auto light_power_uniform = glGetUniformLocation(program, "light_power");
 
     auto light_position = glm::vec3(4.0, 4.0, 4.0);
-    auto light_color = glm::vec3(1.0, 0.8, 0.8);
-    auto light_power = 100.0f;
+    auto light_color = glm::vec3(1.0, 1.0, 1.0);
+    auto light_power = 200.0f;
 
     auto start = std::chrono::system_clock::now();
     while (!glfwWindowShouldClose(window))
@@ -261,6 +263,10 @@ int main()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, normal_texture_id);
         glUniform1i(normal_texture_samp_uniform, 1);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, specular_texture_id);
+        glUniform1i(specular_texture_samp_uniform, 2);
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
