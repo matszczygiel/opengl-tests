@@ -2,7 +2,6 @@
         
 in vec2 uv;
 in vec3 positon_worldspace;
-in vec3 normal_cameraspace;
 in vec3 eyedir_cameraspace;
 in vec3 lightdir_cameraspace;
 
@@ -29,7 +28,7 @@ void main(){
 
     vec3 texture_normal_tangentspace = normalize(texture( normal_texture_samp, vec2(uv.x,-uv.y) ).rgb*2.0 - 1.0);
 
-    vec3 n = normalize(texture_normal_tangentspace);
+    vec3 n = texture_normal_tangentspace;
     vec3 l = normalize(lightdir_tangentspace);
     float cos_theta = clamp(dot(n, l), 0.0, 1.0);
 

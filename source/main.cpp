@@ -22,6 +22,9 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
 
     static auto horizontal_angle = 3.14f;
     static auto vertical_angle = 0.0f;
+    static glm::vec3 position = glm::vec3(0.0f, 0.0f, 5.0f);
+    static float fov = 45.0f;
+
     constexpr auto mouse_speed = 0.002f;
 
     double xpos, ypos;
@@ -46,7 +49,6 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
 
     const glm::vec3 up = glm::cross(right, direction);
 
-    static glm::vec3 position = glm::vec3(0.0f, 0.0f, 5.0f);
     constexpr auto speed = 3.0f;
 
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
@@ -66,7 +68,6 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
         position -= right * delta_time * speed;
     }
 
-    static float fov = 45.0f;
     constexpr auto fov_speed = 1.05f;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -80,6 +81,13 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
         fov *= fov_speed;
         if (fov > 100.0f)
             fov = 100.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+    {
+        horizontal_angle = 3.14f;
+        vertical_angle = 0.0f;
+        position = glm::vec3(0.0f, 0.0f, 5.0f);
+        fov = 45.0f;
     }
 
     int width, height;
@@ -97,6 +105,22 @@ std::tuple<glm::mat4, glm::mat4> matrices_from_input(GLFWwindow *window)
     return std::make_tuple(view, proj);
 }
 
+void GLAPIENTRY
+msg_callback(GLenum source,
+             GLenum type,
+             GLuint id,
+             GLenum severity,
+             GLsizei length,
+             const GLchar *message,
+             const void *userParam)
+{
+    std::cout << "GL CALLBACK: ";
+    if (type == GL_DEBUG_TYPE_ERROR)
+        std::cout << "** GL ERROR **";
+
+    std::cout << " type = " << type << ", severity = " << severity << ", message =  " << message << "\n";
+}
+
 int main()
 {
 
@@ -104,7 +128,7 @@ int main()
         return -1;
 
     glfwSetErrorCallback([](int error, const char *description) {
-        std::cout << "Error " << error << ": " << description << '\n';
+        std::cout << "glfw Error " << error << ": " << description << '\n';
     });
 
     constexpr int window_width = 1280;
@@ -135,6 +159,10 @@ int main()
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
+//    glEnable(GL_DEBUG_OUTPUT);
+//    glDebugMessageCallback(msg_callback, 0);
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
@@ -153,6 +181,7 @@ int main()
     std::vector<glm::vec3> normals;
     std::vector<unsigned int> indices;
     bool res = loadOBJ("resources/cylinder.obj", vertices, uvs, normals, indices);
+    assert(res);
 
     std::vector<glm::vec3> tangents;
     std::vector<glm::vec3> bitangents;
@@ -215,11 +244,13 @@ int main()
         const auto model = glm::mat4(1.0f);
         const auto mv = view * model;
         const auto mvp = projection * mv;
+        const auto mv3 = glm::mat3(mv);
 
         glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniformMatrix4fv(mv_uniform, 1, GL_FALSE, glm::value_ptr(mv));
         glUniformMatrix4fv(v_uniform, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(m_uniform, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix3fv(mv3_uniform, 1, GL_FALSE, glm::value_ptr(mv3));
 
         glUniform3f(light_pos_uniform, light_position.x, light_position.y, light_position.z);
         glUniform3f(light_color_uniform, light_color.r, light_color.g, light_color.b);

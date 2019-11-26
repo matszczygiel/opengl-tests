@@ -7,7 +7,6 @@ layout(location = 4) in vec3 bitangent_modelspace;
 
 out vec2 uv;
 out vec3 positon_worldspace;
-out vec3 normal_cameraspace;
 out vec3 eyedir_cameraspace;
 out vec3 lightdir_cameraspace;
 
