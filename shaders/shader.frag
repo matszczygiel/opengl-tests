@@ -29,11 +29,11 @@ void main(){
 
     vec3 texture_normal_tangentspace = normalize(texture( normal_texture_samp, vec2(uv.x,-uv.y) ).rgb*2.0 - 1.0);
 
-    vec3 n = normalize(normal_cameraspace);
-    vec3 l = normalize(lightdir_cameraspace);
+    vec3 n = normalize(texture_normal_tangentspace);
+    vec3 l = normalize(lightdir_tangentspace);
     float cos_theta = clamp(dot(n, l), 0.0, 1.0);
 
-    vec3 eye = normalize(eyedir_cameraspace);
+    vec3 eye = normalize(eyedir_tangentspace);
     vec3 r = reflect(-l, n);
     float cos_alpha = clamp(dot(eye, r), 0.0, 1.0);
 

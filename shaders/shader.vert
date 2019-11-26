@@ -35,11 +35,9 @@ void main()
     vec3 lightpos_cameraspace = (V * vec4(light_pos_worldspace, 1.0)).xyz;
     lightdir_cameraspace = lightpos_cameraspace + eyedir_cameraspace;
 
-    normal_cameraspace = (V * M * vec4(normal_modelspace, 0.0)).xyz;
-
+    normal_cameraspace = MV3 * normal_modelspace;
 	vec3 tangent_cameraspace = MV3 * tangent_modelspace;
 	vec3 bitangent_cameraspace = MV3 * bitangent_modelspace;
-	vec3 normal_cameraspace = MV3 * normal_modelspace;
 	
 	mat3 TBN = transpose(mat3(
 		tangent_cameraspace,
