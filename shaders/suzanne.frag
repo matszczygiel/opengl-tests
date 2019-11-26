@@ -2,16 +2,13 @@
         
 in vec2 uv;
 in vec3 positon_worldspace;
+in vec3 normal_cameraspace;
 in vec3 eyedir_cameraspace;
 in vec3 lightdir_cameraspace;
-
-in vec3 eyedir_tangentspace;
-in vec3 lightdir_tangentspace;
         
 out vec3 color;
         
 uniform sampler2D texture_samp;
-uniform sampler2D normal_texture_samp;
 uniform vec3 light_pos_worldspace;
 uniform vec3 light_color;
 uniform float light_power;
@@ -24,13 +21,11 @@ void main(){
 
     float dist = length(light_pos_worldspace - positon_worldspace);
 
-    vec3 texture_normal_tangentspace = normalize(texture( normal_texture_samp, vec2(uv.x,-uv.y) ).rgb*2.0 - 1.0);
-
-    vec3 n = texture_normal_tangentspace;
-    vec3 l = normalize(lightdir_tangentspace);
+    vec3 n = normalize(normal_cameraspace);
+    vec3 l = normalize(lightdir_cameraspace);
     float cos_theta = clamp(dot(n, l), 0.0, 1.0);
 
-    vec3 eye = normalize(eyedir_tangentspace);
+    vec3 eye = normalize(eyedir_cameraspace);
     vec3 r = reflect(-l, n);
     float cos_alpha = clamp(dot(eye, r), 0.0, 1.0);
 
@@ -38,7 +33,4 @@ void main(){
     material_ambient_color + 
     material_diffuse_color * light_color * light_power * cos_theta / (dist * dist) +
     material_specular_color * light_color * light_power * pow(cos_alpha, 5) / (dist * dist);
-
-    color = vec3(0.8, 0.0, 0.0);
-
 }
