@@ -342,28 +342,6 @@ int main()
         const auto mvp = projection * mv;
         const auto mv3 = glm::mat3(mv);
 
-        glUseProgram(skybox_program);
-
-        glBindVertexArray(skybox_vertex_array);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cube_texture);
-
-        glUniform1i(skybox_uniform, 0);
-        const auto skybox_view = glm::mat4(glm::mat3(view));
-        glUniformMatrix4fv(skybox_view_uniform, 1, GL_FALSE, glm::value_ptr(skybox_view));
-        glUniformMatrix4fv(skybox_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
-
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, skybox_vertex_buffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
-
-        glDepthMask(GL_FALSE);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
-
-        glDisableVertexAttribArray(0);
-
-        glBindVertexArray(vertex_array);
         glUseProgram(program);
 
         glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -416,6 +394,29 @@ int main()
         glDisableVertexAttribArray(2);
         glDisableVertexAttribArray(3);
         glDisableVertexAttribArray(4);
+
+        glUseProgram(skybox_program);
+
+        glBindVertexArray(skybox_vertex_array);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cube_texture);
+
+        glUniform1i(skybox_uniform, 0);
+        const auto skybox_view = glm::mat4(glm::mat3(view));
+        glUniformMatrix4fv(skybox_view_uniform, 1, GL_FALSE, glm::value_ptr(skybox_view));
+        glUniformMatrix4fv(skybox_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, skybox_vertex_buffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+        glDepthFunc(GL_LEQUAL);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthFunc(GL_LESS);
+
+        glDisableVertexAttribArray(0);
+
+        glBindVertexArray(vertex_array);
 
         glfwSwapBuffers(window);
 
