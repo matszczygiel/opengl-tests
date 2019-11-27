@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stb/stb_image.h>
 
 #include "functions.h"
 
@@ -167,6 +168,9 @@ int main()
     glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     const auto texture_id = loadDDS("resources/diffuse.DDS");
     const auto normal_texture_id = loadBMP("resources/normal.bmp");
     const auto specular_texture_id = loadBMP("resources/specular.DDS");
@@ -229,6 +233,100 @@ int main()
     const auto light_color_uniform = glGetUniformLocation(program, "light_color");
     const auto light_power_uniform = glGetUniformLocation(program, "light_power");
 
+    GLuint cube_texture;
+    glGenTextures(1, &cube_texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cube_texture);
+
+    constexpr std::array<std::string_view, 6> texture_faces = {"resources/cubemap/px.png",
+                                                               "resources/cubemap/nx.png",
+                                                               "resources/cubemap/py.png",
+                                                               "resources/cubemap/ny.png",
+                                                               "resources/cubemap/pz.png",
+                                                               "resources/cubemap/nz.png"};
+
+    //stbi_set_flip_vertically_on_load(1);
+    int width, height, nrChannels;
+    unsigned char *data;
+    for (GLuint i = 0; i < texture_faces.size(); i++)
+    {
+        data = stbi_load(texture_faces[i].data(), &width, &height, &nrChannels, STBI_rgb);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                         0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        }
+        else
+        {
+            std::cout << "Cubemap texture failed to load at path: " << texture_faces[i] << '\n';
+        }
+        stbi_image_free(data);
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    float skybox_vertices[] = {
+        // positions
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
+
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
+
+        -1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f};
+
+    GLuint skybox_vertex_array;
+    glGenVertexArrays(1, &skybox_vertex_array);
+    glBindVertexArray(skybox_vertex_array);
+
+    GLuint skybox_vertex_buffer;
+    glGenBuffers(1, &skybox_vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, skybox_vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skybox_vertices), skybox_vertices, GL_STATIC_DRAW);
+
+    const auto skybox_program = load_shaders("shaders/skybox.vert", "shaders/skybox.frag");
+
+    const auto skybox_projection_uniform = glGetUniformLocation(skybox_program, "projection");
+    const auto skybox_view_uniform = glGetUniformLocation(skybox_program, "view");
+    const auto skybox_uniform = glGetUniformLocation(skybox_program, "skybox");
+
     auto light_position = glm::vec3(4.0, 4.0, 4.0);
     auto light_color = glm::vec3(1.0, 1.0, 1.0);
     auto light_power = 200.0f;
@@ -238,14 +336,35 @@ int main()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindVertexArray(vertex_array);
-        glUseProgram(program);
-
         const auto [view, projection] = matrices_from_input(window);
         const auto model = glm::mat4(1.0f);
         const auto mv = view * model;
         const auto mvp = projection * mv;
         const auto mv3 = glm::mat3(mv);
+
+        glUseProgram(skybox_program);
+
+        glBindVertexArray(skybox_vertex_array);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cube_texture);
+
+        glUniform1i(skybox_uniform, 0);
+        const auto skybox_view = glm::mat4(glm::mat3(view));
+        glUniformMatrix4fv(skybox_view_uniform, 1, GL_FALSE, glm::value_ptr(skybox_view));
+        glUniformMatrix4fv(skybox_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, skybox_vertex_buffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+        glDepthMask(GL_FALSE);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+
+        glDisableVertexAttribArray(0);
+
+        glBindVertexArray(vertex_array);
+        glUseProgram(program);
 
         glUniformMatrix4fv(mvp_uniform, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniformMatrix4fv(v_uniform, 1, GL_FALSE, glm::value_ptr(view));
@@ -323,6 +442,11 @@ int main()
 
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteProgram(program);
+
+    glDeleteBuffers(1, &skybox_vertex_buffer);
+    glDeleteVertexArrays(1, &skybox_vertex_array);
+    glDeleteTextures(1, &cube_texture);
+    glDeleteProgram(skybox_program);
 
     glfwTerminate();
 }

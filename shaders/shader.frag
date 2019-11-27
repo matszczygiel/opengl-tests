@@ -8,7 +8,7 @@ in vec3 lightdir_cameraspace;
 in vec3 eyedir_tangentspace;
 in vec3 lightdir_tangentspace;
         
-out vec3 color;
+out vec4 color;
         
 uniform sampler2D texture_samp;
 uniform sampler2D normal_texture_samp;
@@ -35,8 +35,10 @@ void main(){
     vec3 r = reflect(-l, n);
     float cos_alpha = clamp(dot(eye, r), 0.0, 1.0);
 
-    color = 
+    color.rgb = 
     material_ambient_color + 
     material_diffuse_color * light_color * light_power * cos_theta / (dist * dist) +
     material_specular_color * light_color * light_power * pow(cos_alpha, 5) / (dist * dist);
+
+    color.a = 1.0;
 }

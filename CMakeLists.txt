@@ -6,6 +6,7 @@ project(gt_test
 
 
 add_subdirectory(glad)
+add_subdirectory(stb)
 
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
     source/*.cpp            source/*.h
@@ -27,5 +28,5 @@ target_compile_options(gl_test
 
 target_link_libraries(gl_test 
                         PRIVATE 
-                        glfw ${CMAKE_DL_LIBS} glad OpenGL::OpenGL glm)                                
+                        glfw ${CMAKE_DL_LIBS} glad OpenGL::OpenGL glm stb)                                
                                             
