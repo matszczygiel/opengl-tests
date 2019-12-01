@@ -1,13 +1,22 @@
+extern crate cgmath;
 extern crate gl;
 extern crate glutin;
 
 mod buffers;
-use buffers::*;
-
 mod shaders;
+mod camera;
+mod textures;
+
+use buffers::*;
 use shaders::*;
+use camera::*;
+use textures::*;
 
 use std::ffi::CStr;
+use std::time::{Duration, Instant};
+
+use cgmath::*;
+use glutin::*;
 
 extern "system" fn debug_callback(
     _: gl::types::GLenum,
@@ -30,13 +39,16 @@ extern "system" fn debug_callback(
 }
 
 fn main() {
-    let el = glutin::event_loop::EventLoop::new();
-    let wb = glutin::window::WindowBuilder::new()
+    const WIDTH: f32 = 1600.0;
+    const HEIGTH: f32 = 900.0;
+
+    let el = event_loop::EventLoop::new();
+    let wb = window::WindowBuilder::new()
         .with_title("Hello world!")
-        .with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
+        .with_inner_size(dpi::LogicalSize::new(WIDTH as f64, HEIGTH as f64));
 
     let windowed_context = unsafe {
-        glutin::ContextBuilder::new()
+        ContextBuilder::new()
             .with_vsync(true)
             .build_windowed(wb, &el)
             .unwrap()
@@ -121,37 +133,75 @@ fn main() {
         -1.0, -1.0,  1.0,
          1.0, -1.0,  1.0];
 
-
     let skybox_va = VertexArray::new();
     let skybox_vb = VertexBuffer::new_static(&skybox_vertices);
+    let skybox_shader = Shader::new("shaders/skybox.vert", "shaders/skybox.frag");
 
-    el.run(move |event, _, control_flow| match event {
-        glutin::event::Event::LoopDestroyed => return,
-        glutin::event::Event::WindowEvent { ref event, .. } => match event {
-            glutin::event::WindowEvent::CloseRequested => {
-                *control_flow = glutin::event_loop::ControlFlow::Exit
-            }
-            glutin::event::WindowEvent::Resized(logical_size) => {
-                let dpi_factor = windowed_context.window().hidpi_factor();
-                windowed_context.resize(logical_size.to_physical(dpi_factor));
-            }
-            glutin::event::WindowEvent::RedrawRequested => {
-                unsafe {
-                    gl::Clear(gl::COLOR_BUFFER_BIT);
+    let mut cam = Camera::new_default(WIDTH, HEIGTH);
+    const CAM_SPEED: f32 = 3.0;
+    const FOV_SPEED: f32 = 1.05;
+    const MOUSE_SPEED: f32 = 0.002;
+
+    let mut time = Instant::now();
+    let mut delta_t = time.elapsed();
+    el.run(move |event, _, control_flow| {
+        match event {
+            event::Event::LoopDestroyed => return,
+            event::Event::WindowEvent { ref event, .. } => match event {
+                event::WindowEvent::CloseRequested => *control_flow = event_loop::ControlFlow::Exit,
+                event::WindowEvent::Resized(logical_size) => {
+                    let dpi_factor = windowed_context.window().hidpi_factor();
+                    windowed_context.resize(logical_size.to_physical(dpi_factor));
                 }
-                windowed_context.swap_buffers().unwrap();
-            }
-            _ => (),
-        },
-        glutin::event::Event::DeviceEvent { ref event, .. } => match event {
-            glutin::event::DeviceEvent::Key(key) => match key.virtual_keycode {
-                Some(glutin::event::VirtualKeyCode::Escape) => {
-                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                event::WindowEvent::RedrawRequested => {
+                    unsafe {
+                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                    }
+                    windowed_context.swap_buffers().unwrap();
                 }
                 _ => (),
             },
+            event::Event::DeviceEvent { ref event, .. } => match event {
+                event::DeviceEvent::Key(key) => match key.virtual_keycode {
+                    Some(event::VirtualKeyCode::Escape) => {
+                        *control_flow = event_loop::ControlFlow::Exit;
+                    }
+                    Some(event::VirtualKeyCode::Up) => {
+                        cam.position += cam.direction() * delta_t.as_micros() as f32 * CAM_SPEED;
+                    }
+                    Some(event::VirtualKeyCode::Down) => {
+                        cam.position -= cam.direction() * delta_t.as_micros() as f32 * CAM_SPEED;
+                    }
+                    Some(event::VirtualKeyCode::Right) => {
+                        cam.position += cam.right() * delta_t.as_micros() as f32 * CAM_SPEED;
+                    }
+                    Some(event::VirtualKeyCode::Left) => {
+                        cam.position -= cam.right() * delta_t.as_micros() as f32 * CAM_SPEED;
+                    }
+                    Some(event::VirtualKeyCode::W) => {
+                        cam.perspective.fovy /= FOV_SPEED;
+                        if cam.perspective.fovy < Rad::from(Deg(15.0)) {
+                            cam.perspective.fovy = Rad::from(Deg(15.0));
+                        }
+                    }
+                    Some(event::VirtualKeyCode::S) => {
+                        cam.perspective.fovy *= FOV_SPEED;
+                        if cam.perspective.fovy > Rad::from(Deg(100.0)) {
+                            cam.perspective.fovy = Rad::from(Deg(100.0));
+                        }
+                    }
+                    _ => (),
+                },
+                event::DeviceEvent::MouseMotion { delta: (x, y) } => {
+                    cam.horizontal_angle += Rad(*x as f32 * MOUSE_SPEED);
+                    cam.vertical_angle += Rad(*y as f32 * MOUSE_SPEED);
+                },
+                _ => (),
+            },
             _ => (),
-        },
-        _ => (),
+        }
+        delta_t = time.elapsed();
+        time = Instant::now();
+        println!("Time: {}ms", delta_t.as_micros());
     });
 }
