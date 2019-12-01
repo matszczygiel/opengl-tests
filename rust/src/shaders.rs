@@ -2,7 +2,7 @@ extern crate cgmath;
 extern crate gl;
 
 use std::convert::TryInto;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::fs;
 
 use cgmath::*;
@@ -37,6 +37,7 @@ impl Shader {
         }
 
         if infolog_len > 0 {
+            println!("shader liking info!");
             let mut msg = Vec::with_capacity(infolog_len as usize);
             unsafe {
                 gl::GetShaderInfoLog(sh.id, infolog_len, std::ptr::null_mut(), msg.as_mut_ptr());
@@ -74,6 +75,7 @@ impl Shader {
         }
 
         if infolog_len > 0 {
+            println!("shader object info!");
             let mut msg = Vec::with_capacity(infolog_len as usize);
             unsafe {
                 gl::GetShaderInfoLog(id, infolog_len, std::ptr::null_mut(), msg.as_mut_ptr());
@@ -92,7 +94,12 @@ impl Shader {
 
     fn get_uniform_location(&self, name: &str) -> i32 {
         self.bind();
-        unsafe { gl::GetUniformLocation(self.id, name.as_ptr() as *const gl::types::GLchar) }
+        let n = CString::new(name).unwrap();
+        let location = unsafe { gl::GetUniformLocation(self.id, n.as_ptr()) };
+        if location == -1 {
+            println!("failed to locate uniform: {}", name);
+        }
+        location
     }
 
     pub fn set_uniform_1f(&self, name: &str, val: &f32) {
@@ -127,6 +134,13 @@ impl Shader {
         let id = self.get_uniform_location(name);
         unsafe {
             gl::UniformMatrix4fv(id, 1, gl::FALSE, val.as_ptr());
+        }
+    }
+
+    pub fn set_uniform_1i(&self, name: &str, val: &i32) {
+        let id = self.get_uniform_location(name);
+        unsafe {
+            gl::Uniform1i(id, *val);
         }
     }
 }

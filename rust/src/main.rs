@@ -3,16 +3,17 @@ extern crate gl;
 extern crate glutin;
 
 mod buffers;
-mod shaders;
 mod camera;
+mod shaders;
 mod textures;
 
 use buffers::*;
-use shaders::*;
 use camera::*;
+use shaders::*;
 use textures::*;
 
 use std::ffi::CStr;
+use std::os::raw::c_char;
 use std::time::{Duration, Instant};
 
 use cgmath::*;
@@ -32,10 +33,14 @@ extern "system" fn debug_callback(
         print!("** GL ERROR **");
     }
 
-    println!(
-        " type = {0}, severity = {1}, message = {2:?}",
-        gltype, severity, message
-    );
+    unsafe {
+        println!(
+            " type = {0}, severity = {1}, message = {2:?}",
+            gltype,
+            severity,
+            CStr::from_ptr(message as *const c_char)
+        );
+    }
 }
 
 fn main() {
@@ -50,11 +55,16 @@ fn main() {
     let windowed_context = unsafe {
         ContextBuilder::new()
             .with_vsync(true)
+            .with_hardware_acceleration(Some(true))
             .build_windowed(wb, &el)
             .unwrap()
             .make_current()
             .unwrap()
     };
+
+    let window = windowed_context.window();
+    //    window.set_cursor_visible(false);
+    window.set_cursor_grab(true);
 
     unsafe {
         gl::load_with(|s| windowed_context.get_proc_address(s));
@@ -135,7 +145,16 @@ fn main() {
 
     let skybox_va = VertexArray::new();
     let skybox_vb = VertexBuffer::new_static(&skybox_vertices);
-    let skybox_shader = Shader::new("shaders/skybox.vert", "shaders/skybox.frag");
+    let skybox_shader = Shader::new("../shaders/skybox.vert", "../shaders/skybox.frag").unwrap();
+    let skybox_texture = TextureCubeMap::new_from_images(
+        "../resources/cubemap/px.png",
+        "../resources/cubemap/nx.png",
+        "../resources/cubemap/py.png",
+        "../resources/cubemap/ny.png",
+        "../resources/cubemap/pz.png",
+        "../resources/cubemap/nz.png",
+    )
+    .unwrap();
 
     let mut cam = Camera::new_default(WIDTH, HEIGTH);
     const CAM_SPEED: f32 = 3.0;
@@ -152,12 +171,6 @@ fn main() {
                 event::WindowEvent::Resized(logical_size) => {
                     let dpi_factor = windowed_context.window().hidpi_factor();
                     windowed_context.resize(logical_size.to_physical(dpi_factor));
-                }
-                event::WindowEvent::RedrawRequested => {
-                    unsafe {
-                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-                    }
-                    windowed_context.swap_buffers().unwrap();
                 }
                 _ => (),
             },
@@ -195,13 +208,51 @@ fn main() {
                 event::DeviceEvent::MouseMotion { delta: (x, y) } => {
                     cam.horizontal_angle += Rad(*x as f32 * MOUSE_SPEED);
                     cam.vertical_angle += Rad(*y as f32 * MOUSE_SPEED);
-                },
+                }
                 _ => (),
             },
             _ => (),
         }
+        unsafe {
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+        let (view, projection) = cam.to_VP();
+        let skybox_view = {
+            let mut v = view.clone();
+            v[3][0] = 0.0;
+            v[3][1] = 0.0;
+            v[3][2] = 0.0;
+            v[3][3] = 0.0;
+            v[0][3] = 0.0;
+            v[1][3] = 0.0;
+            v[2][3] = 0.0;
+            v
+        };
+
+        skybox_shader.bind();
+        skybox_va.bind();
+        skybox_shader.set_uniform_mat4f("view", &skybox_view);
+        skybox_shader.set_uniform_mat4f("projection", &projection);
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0);
+        }
+        skybox_texture.bind();
+        skybox_shader.set_uniform_1i("skybox", &0);
+        unsafe {
+            gl::EnableVertexAttribArray(0);
+            skybox_vb.bind();
+            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, 0 as *const std::ffi::c_void);
+            gl::DepthFunc(gl::LEQUAL);
+            gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            gl::DepthFunc(gl::LESS);
+            gl::DisableVertexAttribArray(0);
+        }
+
+        windowed_context.swap_buffers().unwrap();
+
         delta_t = time.elapsed();
         time = Instant::now();
         println!("Time: {}ms", delta_t.as_micros());
     });
+
 }
