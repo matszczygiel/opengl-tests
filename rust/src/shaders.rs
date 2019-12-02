@@ -2,7 +2,7 @@ extern crate cgmath;
 extern crate gl;
 
 use std::convert::TryInto;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::fs;
 
 use cgmath::*;
@@ -142,6 +142,13 @@ impl Shader {
         unsafe {
             gl::Uniform1i(id, *val);
         }
+    }
+
+    pub fn set_texture_slot(&self, name: &str, val: &u32) {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + *val);
+        }
+        self.set_uniform_1i(name, &(*val).try_into().unwrap());
     }
 }
 

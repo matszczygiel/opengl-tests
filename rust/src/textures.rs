@@ -18,12 +18,9 @@ impl Texture2D {
         };
         t.bind();
 
-        let image = open(filename);
-        if image.is_err() {
-            return Err("failed to load image");
-        }
+        let image = open(filename).map_err(|_| "failed to load image")?;
 
-        match image.unwrap() {
+        match image {
             ImageRgb8(img) => unsafe {
                 gl::TexImage2D(
                     gl::TEXTURE_2D,
@@ -100,11 +97,8 @@ pub struct TextureCubeMap {
 
 impl TextureCubeMap {
     fn setup_side(filename: &str, side: gl::types::GLenum) -> Result<(), &'static str> {
-        let image = open(filename);
-        if image.is_err() {
-            return Err("failed to load image");
-        }
-        match image.unwrap() {
+        let image = open(filename).map_err(|_| "failed to load image")?;
+        match image {
             ImageRgb8(img) => unsafe {
                 gl::TexImage2D(
                     side,

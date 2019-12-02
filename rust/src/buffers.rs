@@ -60,6 +60,35 @@ impl VertexArray {
             gl::BindVertexArray(self.id);
         }
     }
+
+    pub fn set_vertex_attrib_array(
+        &self,
+        index: u32,
+        size: i32,
+        normalized: bool,
+        stride: i32,
+        offset: i32,
+    ) {
+        let norm = {
+            if normalized {
+                gl::TRUE
+            } else {
+                gl::FALSE
+            }
+        };
+        self.bind();
+        unsafe {
+            gl::VertexAttribPointer(
+                index,
+                size,
+                gl::FLOAT,
+                norm,
+                stride,
+                offset as *const std::ffi::c_void,
+            );
+            gl::EnableVertexAttribArray(index);
+        }
+    }
 }
 
 impl Drop for VertexArray {

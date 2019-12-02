@@ -171,9 +171,9 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    const auto texture_id = loadDDS("resources/diffuse.DDS");
-    const auto normal_texture_id = loadBMP("resources/normal.bmp");
-    const auto specular_texture_id = loadBMP("resources/specular.DDS");
+    const auto texture_id = loadDDS("../resources/diffuse.DDS");
+    const auto normal_texture_id = loadBMP("../resources/normal.bmp");
+    const auto specular_texture_id = loadBMP("../resources/specular.DDS");
 
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
@@ -183,7 +183,7 @@ int main()
     std::vector<glm::vec2> uvs;
     std::vector<glm::vec3> normals;
     std::vector<unsigned int> indices;
-    bool res = loadOBJ("resources/cylinder.obj", vertices, uvs, normals, indices);
+    bool res = loadOBJ("../resources/cylinder.obj", vertices, uvs, normals, indices);
     assert(res);
 
     std::vector<glm::vec3> tangents;
@@ -220,7 +220,7 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    const auto program = load_shaders("shaders/shader.vert", "shaders/shader.frag");
+    const auto program = load_shaders("../shaders/shader.vert", "../shaders/shader.frag");
     glUseProgram(program);
     const auto mvp_uniform = glGetUniformLocation(program, "MVP");
     const auto mv3_uniform = glGetUniformLocation(program, "MV3");
@@ -237,12 +237,12 @@ int main()
     glGenTextures(1, &cube_texture);
     glBindTexture(GL_TEXTURE_CUBE_MAP, cube_texture);
 
-    constexpr std::array<std::string_view, 6> texture_faces = {"resources/cubemap/px.png",
-                                                               "resources/cubemap/nx.png",
-                                                               "resources/cubemap/py.png",
-                                                               "resources/cubemap/ny.png",
-                                                               "resources/cubemap/pz.png",
-                                                               "resources/cubemap/nz.png"};
+    constexpr std::array<std::string_view, 6> texture_faces = {"../resources/cubemap/px.png",
+                                                               "../resources/cubemap/nx.png",
+                                                               "../resources/cubemap/py.png",
+                                                               "../resources/cubemap/ny.png",
+                                                               "../resources/cubemap/pz.png",
+                                                               "../resources/cubemap/nz.png"};
 
     //stbi_set_flip_vertically_on_load(1);
     int width, height, nrChannels;
@@ -321,7 +321,7 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, skybox_vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(skybox_vertices), skybox_vertices, GL_STATIC_DRAW);
 
-    const auto skybox_program = load_shaders("shaders/skybox.vert", "shaders/skybox.frag");
+    const auto skybox_program = load_shaders("../shaders/skybox.vert", "../shaders/skybox.frag");
 
     const auto skybox_projection_uniform = glGetUniformLocation(skybox_program, "projection");
     const auto skybox_view_uniform = glGetUniformLocation(skybox_program, "view");

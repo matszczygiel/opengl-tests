@@ -11,10 +11,14 @@ pub struct Camera {
 
 impl Camera {
     pub fn new_default(width: f32, height: f32) -> Self {
+        Self::new_default_aspect(width / height)
+    }
+
+    pub fn new_default_aspect(aspect: f32) -> Self {
         Self {
             perspective: PerspectiveFov {
                 fovy: Rad::from(Deg(45.0)),
-                aspect: width / height,
+                aspect: aspect,
                 near: 0.1,
                 far: 100.0,
             },
@@ -32,7 +36,7 @@ impl Camera {
         Vector3 {
             x: self.vertical_angle.cos() * self.horizontal_angle.sin(),
             y: self.vertical_angle.sin(),
-            z: self.vertical_angle.cos() * self.horizontal_angle.sin(),
+            z: self.vertical_angle.cos() * self.horizontal_angle.cos(),
         }
     }
 
@@ -44,7 +48,7 @@ impl Camera {
         }
     }
 
-    pub fn to_VP(&self) -> (Matrix4<f32>, Matrix4<f32>) {
+    pub fn to_vp(&self) -> (Matrix4<f32>, Matrix4<f32>) {
         let direction = self.direction();
         let right = self.right();
         let up = right.cross(direction);
