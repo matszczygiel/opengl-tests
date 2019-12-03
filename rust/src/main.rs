@@ -7,21 +7,20 @@ mod buffers;
 mod camera;
 mod shaders;
 mod textures;
+mod utils;
 
 use buffers::*;
 use camera::*;
 use shaders::*;
 use textures::*;
+use utils::*;
 
 use std::ffi::CStr;
-use std::fs::File;
-use std::io::Read;
 use std::os::raw::c_char;
 use std::time::Instant;
 
 use cgmath::*;
 use glutin::*;
-use wavefront_obj::*;
 
 extern "system" fn debug_callback(
     _: gl::types::GLenum,
@@ -75,7 +74,7 @@ fn main() {
 
     unsafe {
         gl::load_with(|s| windowed_context.get_proc_address(s));
-        gl::ClearColor(0.0, 0.0, 0.4, 0.0);
+        gl::ClearColor(0.1, 0.1, 0.1, 1.0);
     }
 
     println!("OpenGL info");
@@ -165,16 +164,68 @@ fn main() {
     )
     .unwrap();
 
-    let mut cylinder_file = String::new();
-    let _ = std::fs::File::open("../resources/cylinder_rust.obj")
-        .unwrap()
-        .read_to_string(&mut cylinder_file)
-        .unwrap();
+    let sphere_shader = Shader::new("../shaders/sphere.vert", "../shaders/sphere.frag").unwrap();
+    sphere_shader.bind();
+    sphere_shader.set_uniform_3f(
+        "albedo",
+        &Vector3 {
+            x: 0.5,
+            y: 0.0,
+            z: 0.0,
+        },
+    );
+    sphere_shader.set_uniform_1f("ao", &1.0);
 
-    let cylinder_parse = obj::parse(cylinder_file);
+    let light_positions = [
+        Vector3::<f32> {
+            x: -10.0,
+            y: 10.0,
+            z: 10.0,
+        },
+        Vector3::<f32> {
+            x: 10.0,
+            y: 10.0,
+            z: 10.0,
+        },
+        Vector3::<f32> {
+            x: -10.0,
+            y: -10.0,
+            z: 10.0,
+        },
+        Vector3::<f32> {
+            x: 10.0,
+            y: -10.0,
+            z: 10.0,
+        },
+    ];
+
+    let light_colors = [
+        Vector3::<f32> {
+            x: 300.0,
+            y: 300.0,
+            z: 300.0,
+        },
+        Vector3::<f32> {
+            x: 300.0,
+            y: 300.0,
+            z: 300.0,
+        },
+        Vector3::<f32> {
+            x: 300.0,
+            y: 300.0,
+            z: 300.0,
+        },
+        Vector3::<f32> {
+            x: 300.0,
+            y: 300.0,
+            z: 300.0,
+        },
+    ];
+
+    let (sphere_va, sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
 
     let mut cam = Camera::new_default(WIDTH, HEIGTH);
-    const CAM_SPEED: f32 = 3.0;
+    const CAM_SPEED: f32 = 0.0001;
     const FOV_SPEED: f32 = 1.05;
     const MOUSE_SPEED: f32 = 0.002;
 
@@ -268,6 +319,61 @@ fn main() {
                     gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 }
                 let (view, projection) = cam.to_vp();
+                sphere_shader.bind();
+                sphere_shader.set_uniform_mat4f("projection", &projection);
+                sphere_shader.set_uniform_mat4f("view", &view);
+                sphere_shader.set_uniform_3f("camPos", &cam.position.to_homogeneous().truncate());
+                sphere_va.bind();
+                sphere_ib.bind();
+
+                const ROWS: i32 = 7;
+                const COLS: i32 = 7;
+                const SPACING: f32 = 2.5;
+
+                for row in 0..ROWS {
+                    let metallness = row as f32 / ROWS as f32;
+                    sphere_shader.set_uniform_1f("metallic", &metallness);
+                    for col in 0..COLS {
+                        let roughness = (col as f32 / COLS as f32).max(0.05).min(1.0);
+                        sphere_shader.set_uniform_1f("roughness", &roughness);
+
+                        let translation = vec3::<f32>(
+                            col as f32 - (COLS as f32 / 2.0),
+                            row as f32 - (ROWS as f32 / 2.0),
+                            0.0,
+                        ) * SPACING;
+                        let model = Matrix4::<f32>::from_translation(translation);
+                        sphere_shader.set_uniform_mat4f("model", &model);
+
+                        unsafe {
+                            gl::DrawElements(
+                                gl::TRIANGLE_STRIP,
+                                sphere_ib.count() as i32,
+                                gl::UNSIGNED_INT,
+                                std::ptr::null(),
+                            );
+                        }
+                    }
+                }
+
+                for i in 0..light_positions.len() {
+                    sphere_shader
+                        .set_uniform_3f(&format!("lightPositions[{}]", i), &light_positions[i]);
+                    sphere_shader.set_uniform_3f(&format!("lightColors[{}]", i), &light_colors[i]);
+                    let model = Matrix4::<f32>::from_translation(light_positions[i])
+                        * Matrix4::<f32>::from_scale(0.5);
+
+                    sphere_shader.set_uniform_mat4f("model", &model);
+                    unsafe {
+                        gl::DrawElements(
+                            gl::TRIANGLE_STRIP,
+                            sphere_ib.count() as i32,
+                            gl::UNSIGNED_INT,
+                            std::ptr::null(),
+                        );
+                    }
+                }
+
                 let skybox_view = {
                     let mut v = view.clone();
                     v[3][0] = 0.0;

@@ -64,7 +64,7 @@ impl VertexArray {
     pub fn set_vertex_attrib_array(
         &self,
         index: u32,
-        size: i32,
+        count: i32,
         normalized: bool,
         stride: i32,
         offset: i32,
@@ -80,11 +80,11 @@ impl VertexArray {
         unsafe {
             gl::VertexAttribPointer(
                 index,
-                size,
+                count,
                 gl::FLOAT,
                 norm,
-                stride,
-                offset as *const std::ffi::c_void,
+                stride * std::mem::size_of::<f32>() as i32,
+                (offset * std::mem::size_of::<f32>() as i32) as *const std::ffi::c_void,
             );
             gl::EnableVertexAttribArray(index);
         }
@@ -95,6 +95,53 @@ impl Drop for VertexArray {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteVertexArrays(1, &self.id);
+        }
+    }
+}
+
+pub struct IndexBuffer {
+    id: gl::types::GLuint,
+    count: usize,
+}
+
+impl IndexBuffer {
+    pub fn new_static(indices: &[u32]) -> Self {
+        let mut ib = Self {
+            id: 0,
+            count: indices.len(),
+        };
+        unsafe {
+            gl::GenBuffers(1, &mut ib.id);
+        }
+        ib.bind();
+        unsafe {
+            gl::BufferData(
+                gl::ELEMENT_ARRAY_BUFFER,
+                (ib.count() * std::mem::size_of::<u32>())
+                    .try_into()
+                    .unwrap(),
+                indices.as_ptr() as *const std::ffi::c_void,
+                gl::STATIC_DRAW,
+            );
+        }
+        ib
+    }
+
+    pub fn bind(&self) {
+        unsafe {
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id);
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.count
+    }
+}
+
+impl Drop for IndexBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.id);
         }
     }
 }
