@@ -30,20 +30,8 @@ impl Shader {
             gl::AttachShader(sh.id, fragment_sh);
             gl::LinkProgram(sh.id);
         }
+        Shader::get_and_print_error_msg(sh.id);
 
-        let mut infolog_len: gl::types::GLint = 0;
-        unsafe {
-            gl::GetProgramiv(sh.id, gl::INFO_LOG_LENGTH, &mut infolog_len);
-        }
-
-        if infolog_len > 0 {
-            println!("shader liking info!");
-            let mut msg = Vec::with_capacity(infolog_len as usize);
-            unsafe {
-                gl::GetShaderInfoLog(sh.id, infolog_len, std::ptr::null_mut(), msg.as_mut_ptr());
-            }
-            println!("{:?}", msg);
-        }
         unsafe {
             gl::DetachShader(sh.id, vertex_sh);
             gl::DetachShader(sh.id, fragment_sh);
@@ -67,23 +55,31 @@ impl Shader {
         unsafe {
             id = gl::CreateShader(shader_type);
             gl::ShaderSource(id, 1, &strptr, &strlen);
+            gl::CompileShader(id);
         }
+        Shader::get_and_print_error_msg(id);
 
+        return Ok(id);
+    }
+
+    fn get_and_print_error_msg(id: gl::types::GLuint) {
         let mut infolog_len: gl::types::GLint = 0;
         unsafe {
             gl::GetShaderiv(id, gl::INFO_LOG_LENGTH, &mut infolog_len);
         }
 
         if infolog_len > 0 {
-            println!("shader object info!");
-            let mut msg = Vec::with_capacity(infolog_len as usize);
+            let msg = create_cstring_whitespace(infolog_len as usize);
             unsafe {
-                gl::GetShaderInfoLog(id, infolog_len, std::ptr::null_mut(), msg.as_mut_ptr());
+                gl::GetShaderInfoLog(
+                    id,
+                    infolog_len,
+                    std::ptr::null_mut(),
+                    msg.as_ptr() as *mut i8,
+                );
             }
-            println!("{:?}", msg);
+            println!("{}", msg.to_string_lossy().to_owned());
         }
-
-        return Ok(id);
     }
 
     pub fn bind(&self) {
@@ -158,4 +154,10 @@ impl Drop for Shader {
             gl::DeleteProgram(self.id);
         }
     }
+}
+
+fn create_cstring_whitespace(len: usize) -> CString {
+    let mut buffer = Vec::<u8>::with_capacity(len + 1);
+    buffer.extend([b' '].iter().cycle().take(len));
+    unsafe { CString::from_vec_unchecked(buffer) }
 }

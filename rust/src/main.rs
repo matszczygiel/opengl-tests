@@ -58,7 +58,7 @@ fn main() {
     let windowed_context = unsafe {
         ContextBuilder::new()
             .with_vsync(true)
-            .with_srgb(false)
+            //            .with_srgb(false)
             .with_gl(GlRequest::Latest)
             .with_gl_profile(GlProfile::Core)
             .build_windowed(wb, &el)
@@ -165,7 +165,8 @@ fn main() {
     )
     .unwrap();
 
-    let sphere_shader = Shader::new("../shaders/sphere.vert", "../shaders/sphere.frag").unwrap();
+    let sphere_shader =
+        Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
     sphere_shader.bind();
     sphere_shader.set_uniform_3f(
         "albedo",
@@ -339,13 +340,15 @@ fn main() {
                     sphere_shader.set_uniform_mat4f("projection", &projection);
                     sphere_shader.set_uniform_mat4f("view", &view);
                     let cam_pos = cam.position.to_homogeneous().truncate();
-                    sphere_shader.set_uniform_3f("camPos", &cam_pos);
+                    sphere_shader.set_uniform_3f("world_cam_posiiton", &cam_pos);
 
                     for i in 0..light_positions.len() {
+                        sphere_shader.set_uniform_3f(
+                            &format!("light_positions[{}]", i),
+                            &light_positions[i],
+                        );
                         sphere_shader
-                            .set_uniform_3f(&format!("lightPositions[{}]", i), &light_positions[i]);
-                        sphere_shader
-                            .set_uniform_3f(&format!("lightColors[{}]", i), &light_colors[i]);
+                            .set_uniform_3f(&format!("light_colors[{}]", i), &light_colors[i]);
                     }
 
                     sphere_va.bind();
