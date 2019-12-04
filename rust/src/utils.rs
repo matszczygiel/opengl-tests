@@ -16,15 +16,15 @@ pub fn crate_sphere_buffers(radius: f32) -> (VertexArray, VertexBuffer, IndexBuf
             let x_seg = x as f32 / X_SEGMENTS as f32;
             let y_seg = y as f32 / Y_SEGMENTS as f32;
             use std::f32::consts::PI;
-            let x_pos = radius * (x_seg * 2.0 * PI).cos() * (y_seg * PI).sin();
-            let y_pos = radius * (y_seg * PI).cos();
-            let z_pos = radius * (x_seg * 2.0 * PI).sin() * (y_seg * PI).sin();
-            positions.push(Point3 {
-                x: x_pos,
-                y: y_pos,
-                z: z_pos,
+            let x_pos = (x_seg * 2.0 * PI).cos() * (y_seg * PI).sin();
+            let y_pos = (y_seg * PI).cos();
+            let z_pos = (x_seg * 2.0 * PI).sin() * (y_seg * PI).sin();
+            positions.push(Vector3 {
+                x: radius * x_pos,
+                y: radius * y_pos,
+                z: radius * z_pos,
             });
-            uvs.push(Point2 { x: x_pos, y: y_pos });
+            uvs.push(Vector2 { x: x_pos, y: y_pos });
             normals.push(Vector3 {
                 x: x_pos,
                 y: y_pos,
@@ -37,13 +37,13 @@ pub fn crate_sphere_buffers(radius: f32) -> (VertexArray, VertexBuffer, IndexBuf
     for y in 0..Y_SEGMENTS {
         if odd_row {
             for x in 0..=X_SEGMENTS {
-                indices.push(y * (X_SEGMENTS + 1) + x);
                 indices.push((y + 1) * (X_SEGMENTS + 1) + x);
+                indices.push(y * (X_SEGMENTS + 1) + x);
             }
         } else {
             for x in (0..=X_SEGMENTS).rev() {
-                indices.push((y + 1) * (X_SEGMENTS + 1) + x);
                 indices.push(y * (X_SEGMENTS + 1) + x);
+                indices.push((y + 1) * (X_SEGMENTS + 1) + x);
             }
         }
         odd_row = !odd_row;

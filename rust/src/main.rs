@@ -48,16 +48,17 @@ extern "system" fn debug_callback(
 
 fn main() {
     const WIDTH: f32 = 1600.0;
-    const HEIGTH: f32 = 900.0;
+    const HEIGHT: f32 = 900.0;
 
     let el = event_loop::EventLoop::new();
     let wb = window::WindowBuilder::new()
         .with_title("Hello world!")
-        .with_inner_size(dpi::LogicalSize::new(WIDTH as f64, HEIGTH as f64));
+        .with_inner_size(dpi::LogicalSize::new(WIDTH as f64, HEIGHT as f64));
 
     let windowed_context = unsafe {
         ContextBuilder::new()
             .with_vsync(true)
+            .with_srgb(false)
             .with_gl(GlRequest::Latest)
             .with_gl_profile(GlProfile::Core)
             .build_windowed(wb, &el)
@@ -224,8 +225,9 @@ fn main() {
 
     let (sphere_va, sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
 
-    let mut cam = Camera::new_default(WIDTH, HEIGTH);
-    const CAM_SPEED: f32 = 0.00006;
+    let mut cam = Camera::new_default(WIDTH, HEIGHT);
+    cam.position.z = 5.0;
+    const CAM_SPEED: f32 = 0.00003;
     const FOV_SPEED: f32 = 1.05;
     const MOUSE_SPEED: f32 = 0.002;
 
@@ -241,6 +243,7 @@ fn main() {
 
     use event::*;
     el.run(move |event, _, control_flow| {
+        *control_flow = event_loop::ControlFlow::Poll;
         match event {
             Event::LoopDestroyed => return,
             Event::WindowEvent { ref event, .. } => match event {
@@ -266,7 +269,6 @@ fn main() {
                     windowed_context.window().set_cursor_grab(true).ok();
                     windowed_context.window().set_cursor_visible(false);
                     window_focused = true;
-                    *control_flow = event_loop::ControlFlow::Wait;
                 }
                 WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
                     Some(VirtualKeyCode::Escape) => {
@@ -311,6 +313,7 @@ fn main() {
                     Some(VirtualKeyCode::R) => {
                         let size = windowed_context.window().inner_size();
                         cam = Camera::new_default(size.width as f32, size.height as f32);
+                        cam.position.z = 5.0;
                     }
                     _ => (),
                 },
@@ -335,8 +338,16 @@ fn main() {
                     sphere_shader.bind();
                     sphere_shader.set_uniform_mat4f("projection", &projection);
                     sphere_shader.set_uniform_mat4f("view", &view);
-                    sphere_shader
-                        .set_uniform_3f("camPos", &cam.position.to_homogeneous().truncate());
+                    let cam_pos = cam.position.to_homogeneous().truncate();
+                    sphere_shader.set_uniform_3f("camPos", &cam_pos);
+
+                    for i in 0..light_positions.len() {
+                        sphere_shader
+                            .set_uniform_3f(&format!("lightPositions[{}]", i), &light_positions[i]);
+                        sphere_shader
+                            .set_uniform_3f(&format!("lightColors[{}]", i), &light_colors[i]);
+                    }
+
                     sphere_va.bind();
                     sphere_ib.bind();
 
@@ -371,10 +382,6 @@ fn main() {
                     }
 
                     for i in 0..light_positions.len() {
-                        sphere_shader
-                            .set_uniform_3f(&format!("lightPositions[{}]", i), &light_positions[i]);
-                        sphere_shader
-                            .set_uniform_3f(&format!("lightColors[{}]", i), &light_colors[i]);
                         let model = Matrix4::<f32>::from_translation(light_positions[i])
                             * Matrix4::<f32>::from_scale(0.5);
 
@@ -388,7 +395,6 @@ fn main() {
                             );
                         }
                     }
-
                     let skybox_view = {
                         let mut v = view.clone();
                         v[3][0] = 0.0;
@@ -411,11 +417,12 @@ fn main() {
                         gl::DrawArrays(gl::TRIANGLES, 0, 36);
                         gl::DepthFunc(gl::LESS);
                     }
+
                     windowed_context.swap_buffers().unwrap();
 
                     delta_t = time.elapsed();
                     time = Instant::now();
-                    println!("Time: {}ms", delta_t.as_micros() / 1000);
+                    println!("Time: {}ms", delta_t.as_micros() as f32 / 1000.0);
                 }
                 _ => (),
             },
