@@ -15,47 +15,24 @@ fn load_texture_from_image(
     texture_type: gl::types::GLenum,
 ) -> Result<(), String> {
     image.flipv();
-    match image {
-        ImageRgb8(img) => unsafe {
-            gl::TexImage2D(
-                texture_type,
-                0,
-                gl::RGB8 as i32,
-                img.width() as i32,
-                img.height() as i32,
-                0,
-                gl::RGB,
-                gl::UNSIGNED_BYTE,
-                img.into_raw().as_ptr() as *const std::ffi::c_void,
-            );
-        },
-        ImageRgba8(img) => unsafe {
-            gl::TexImage2D(
-                texture_type,
-                0,
-                gl::RGBA8 as i32,
-                img.width() as i32,
-                img.height() as i32,
-                0,
-                gl::RGBA,
-                gl::UNSIGNED_BYTE,
-                img.into_raw().as_ptr() as *const std::ffi::c_void,
-            );
-        },
-        ImageLuma8(img) => unsafe {
-            gl::TexImage2D(
-                texture_type,
-                0,
-                gl::R8 as i32,
-                img.width() as i32,
-                img.height() as i32,
-                0,
-                gl::RED,
-                gl::UNSIGNED_BYTE,
-                img.into_raw().as_ptr() as *const std::ffi::c_void,
-            );
-        },
+    let format = match image {
+        ImageRgb8(_) => (gl::RGB8, gl::RGB),
+        ImageRgba8(_) => (gl::RGBA8, gl::RGBA),
+        ImageLuma8(_) => (gl::R8, gl::RED),
         _ => return Err("Unknown image format".to_string()),
+    };
+    unsafe {
+        gl::TexImage2D(
+            texture_type,
+            0,
+            format.0 as i32,
+            image.width() as i32,
+            image.height() as i32,
+            0,
+            format.1,
+            gl::UNSIGNED_BYTE,
+            image.raw_pixels().as_ptr() as *const std::ffi::c_void,
+        );
     }
     Ok(())
 }
@@ -76,6 +53,7 @@ impl Texture2D {
         setup_texture_from_image(filename, gl::TEXTURE_2D)?;
 
         unsafe {
+            gl::GenerateMipmap(gl::TEXTURE_2D);
             gl::TexParameteri(
                 gl::TEXTURE_2D,
                 gl::TEXTURE_WRAP_S,
@@ -96,7 +74,6 @@ impl Texture2D {
                 gl::TEXTURE_MIN_FILTER,
                 gl::LINEAR_MIPMAP_LINEAR.try_into().unwrap(),
             );
-            gl::GenerateMipmap(gl::TEXTURE_2D);
         }
         Ok(t)
     }

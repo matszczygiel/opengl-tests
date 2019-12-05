@@ -165,8 +165,11 @@ fn main() {
     )
     .unwrap();
 
-    let sphere_shader =
-        Shader::new("../shaders/sphere_textured_pbr.vert", "../shaders/sphere_textured_pbr.frag").unwrap();
+    let sphere_shader = Shader::new(
+        "../shaders/sphere_textured_pbr.vert",
+        "../shaders/sphere_textured_pbr.frag",
+    )
+    .unwrap();
     sphere_shader.bind();
 
     let light_positions = [
@@ -194,24 +197,24 @@ fn main() {
 
     let light_colors = [
         Vector3::<f32> {
-            x: 30.0,
-            y: 30.0,
-            z: 30.0,
+            x: 150.0,
+            y: 150.0,
+            z: 150.0,
         },
         Vector3::<f32> {
-            x: 30.0,
-            y: 30.0,
-            z: 30.0,
+            x: 150.0,
+            y: 150.0,
+            z: 150.0,
         },
         Vector3::<f32> {
-            x: 30.0,
-            y: 30.0,
-            z: 30.0,
+            x: 150.0,
+            y: 150.0,
+            z: 150.0,
         },
         Vector3::<f32> {
-            x: 30.0,
-            y: 30.0,
-            z: 30.0,
+            x: 150.0,
+            y: 150.0,
+            z: 150.0,
         },
     ];
 

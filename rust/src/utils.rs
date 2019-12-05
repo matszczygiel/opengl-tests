@@ -24,7 +24,7 @@ pub fn crate_sphere_buffers(radius: f32) -> (VertexArray, VertexBuffer, IndexBuf
                 y: radius * y_pos,
                 z: radius * z_pos,
             });
-            uvs.push(Vector2 { x: x_pos, y: y_pos });
+            uvs.push(Vector2 { x: x_seg, y: y_seg });
             normals.push(Vector3 {
                 x: x_pos,
                 y: y_pos,

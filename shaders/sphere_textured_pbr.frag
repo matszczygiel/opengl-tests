@@ -22,9 +22,9 @@ uniform vec3 light_colors[LIGHT_COUNT];
 const float PI = 3.14159265359;
 
 float normal_distribution_ggx(float n_dot_h, float roughness) {
-    float r_sq = roughness * roughness;
-    float bracket = n_dot_h * n_dot_h * (r_sq - 1.0) + 1.0;
-    return r_sq / (PI * bracket* bracket);
+    float r_4 = roughness * roughness * roughness * roughness;
+    float bracket = n_dot_h * n_dot_h * (r_4 - 1.0) + 1.0;
+    return r_4 / (PI * bracket* bracket);
 }
 
 float gemoetry_funciton_schlick_ggx(float dot_prod, float k){
@@ -59,7 +59,7 @@ vec3 get_normal_worldspace() {
 
 void main() {
     vec3 N = get_normal_worldspace();
-    vec3 albedo = texture(albedo_map, uv).rgb;
+    vec3 albedo = pow(texture(albedo_map, uv).rgb, vec3(2.2));
     float metallic = texture(metallic_map, uv).r;
     float roughness = texture(roughness_map, uv).r;
     float ao = texture(ao_map, uv).r;
@@ -77,7 +77,7 @@ void main() {
         vec3 H  = normalize(V + L);
 
         float light_distance = length(light_positions[i] - world_position);
-        float attenuation = 1.0 / (light_distance);
+        float attenuation = 1.0 / (light_distance * light_distance);
         vec3 radiance = light_colors[i] * attenuation;
     
         vec3 f_lambert = albedo / PI;
