@@ -166,17 +166,8 @@ fn main() {
     .unwrap();
 
     let sphere_shader =
-        Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
+        Shader::new("../shaders/sphere_textured_pbr.vert", "../shaders/sphere_textured_pbr.frag").unwrap();
     sphere_shader.bind();
-    sphere_shader.set_uniform_3f(
-        "albedo",
-        &Vector3 {
-            x: 0.5,
-            y: 0.0,
-            z: 0.0,
-        },
-    );
-    sphere_shader.set_uniform_1f("ao", &1.0);
 
     let light_positions = [
         Vector3::<f32> {
@@ -203,28 +194,36 @@ fn main() {
 
     let light_colors = [
         Vector3::<f32> {
-            x: 300.0,
-            y: 300.0,
-            z: 300.0,
+            x: 30.0,
+            y: 30.0,
+            z: 30.0,
         },
         Vector3::<f32> {
-            x: 300.0,
-            y: 300.0,
-            z: 300.0,
+            x: 30.0,
+            y: 30.0,
+            z: 30.0,
         },
         Vector3::<f32> {
-            x: 300.0,
-            y: 300.0,
-            z: 300.0,
+            x: 30.0,
+            y: 30.0,
+            z: 30.0,
         },
         Vector3::<f32> {
-            x: 300.0,
-            y: 300.0,
-            z: 300.0,
+            x: 30.0,
+            y: 30.0,
+            z: 30.0,
         },
     ];
 
     let (sphere_va, sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
+
+    let albendo_texture = Texture2D::new_from_image("../resources/rusted_iron/albedo.png").unwrap();
+    let ao_texture = Texture2D::new_from_image("../resources/rusted_iron/ao.png").unwrap();
+    let metallic_texture =
+        Texture2D::new_from_image("../resources/rusted_iron/metallic.png").unwrap();
+    let normal_texture = Texture2D::new_from_image("../resources/rusted_iron/normal.png").unwrap();
+    let roughness_texture =
+        Texture2D::new_from_image("../resources/rusted_iron/roughness.png").unwrap();
 
     let mut cam = Camera::new_default(WIDTH, HEIGHT);
     cam.position.z = 5.0;
@@ -351,19 +350,28 @@ fn main() {
                             .set_uniform_3f(&format!("light_colors[{}]", i), &light_colors[i]);
                     }
 
+                    sphere_shader.set_texture_slot("albedo_map", &0);
+                    albendo_texture.bind();
+                    sphere_shader.set_texture_slot("normal_map", &1);
+                    normal_texture.bind();
+                    sphere_shader.set_texture_slot("metallic_map", &2);
+                    metallic_texture.bind();
+                    sphere_shader.set_texture_slot("roughness_map", &3);
+                    roughness_texture.bind();
+                    sphere_shader.set_texture_slot("ao_map", &4);
+                    ao_texture.bind();
+
                     sphere_va.bind();
                     sphere_ib.bind();
 
-                    const ROWS: i32 = 7;
-                    const COLS: i32 = 7;
+                    const ROWS: i32 = 1;
+                    const COLS: i32 = 1;
                     const SPACING: f32 = 2.5;
 
                     for row in 0..ROWS {
                         let metallness = row as f32 / ROWS as f32;
-                        sphere_shader.set_uniform_1f("metallic", &metallness);
                         for col in 0..COLS {
                             let roughness = (col as f32 / COLS as f32).max(0.05).min(1.0);
-                            sphere_shader.set_uniform_1f("roughness", &roughness);
 
                             let translation = vec3::<f32>(
                                 col as f32 - (COLS as f32 / 2.0),

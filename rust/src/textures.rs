@@ -10,45 +10,70 @@ pub struct Texture2D {
     id: gl::types::GLuint,
 }
 
+fn load_texture_from_image(
+    image: DynamicImage,
+    texture_type: gl::types::GLenum,
+) -> Result<(), String> {
+    image.flipv();
+    match image {
+        ImageRgb8(img) => unsafe {
+            gl::TexImage2D(
+                texture_type,
+                0,
+                gl::RGB8 as i32,
+                img.width() as i32,
+                img.height() as i32,
+                0,
+                gl::RGB,
+                gl::UNSIGNED_BYTE,
+                img.into_raw().as_ptr() as *const std::ffi::c_void,
+            );
+        },
+        ImageRgba8(img) => unsafe {
+            gl::TexImage2D(
+                texture_type,
+                0,
+                gl::RGBA8 as i32,
+                img.width() as i32,
+                img.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                img.into_raw().as_ptr() as *const std::ffi::c_void,
+            );
+        },
+        ImageLuma8(img) => unsafe {
+            gl::TexImage2D(
+                texture_type,
+                0,
+                gl::R8 as i32,
+                img.width() as i32,
+                img.height() as i32,
+                0,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                img.into_raw().as_ptr() as *const std::ffi::c_void,
+            );
+        },
+        _ => return Err("Unknown image format".to_string()),
+    }
+    Ok(())
+}
+
+fn setup_texture_from_image(filename: &str, texture_type: gl::types::GLenum) -> Result<(), String> {
+    let image = open(filename).map_err(|_| format!("failed to load image: {}", filename))?;
+    load_texture_from_image(image, texture_type)?;
+    Ok(())
+}
+
 impl Texture2D {
-    pub fn new_from_image(filename: &str) -> Result<Self, &'static str> {
+    pub fn new_from_image(filename: &str) -> Result<Self, String> {
         let mut t = Texture2D { id: 0 };
         unsafe {
             gl::GenTextures(1, &mut t.id);
         };
         t.bind();
-
-        let image = open(filename).map_err(|_| "failed to load image")?;
-
-        match image {
-            ImageRgb8(img) => unsafe {
-                gl::TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RGB8 as i32,
-                    img.width() as i32,
-                    img.height() as i32,
-                    0,
-                    gl::BGR,
-                    gl::UNSIGNED_BYTE,
-                    img.as_ptr() as *const std::ffi::c_void,
-                );
-            },
-            ImageRgba8(img) => unsafe {
-                gl::TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RGBA8 as i32,
-                    img.width() as i32,
-                    img.height() as i32,
-                    0,
-                    gl::BGRA,
-                    gl::UNSIGNED_BYTE,
-                    img.as_ptr() as *const std::ffi::c_void,
-                );
-            },
-            _ => unimplemented!(),
-        }
+        setup_texture_from_image(filename, gl::TEXTURE_2D)?;
 
         unsafe {
             gl::TexParameteri(
@@ -96,40 +121,6 @@ pub struct TextureCubeMap {
 }
 
 impl TextureCubeMap {
-    fn setup_side(filename: &str, side: gl::types::GLenum) -> Result<(), &'static str> {
-        let image = open(filename).map_err(|_| "failed to load image")?;
-        match image {
-            ImageRgb8(img) => unsafe {
-                gl::TexImage2D(
-                    side,
-                    0,
-                    gl::RGB8 as i32,
-                    img.width() as i32,
-                    img.height() as i32,
-                    0,
-                    gl::BGR,
-                    gl::UNSIGNED_BYTE,
-                    img.as_ptr() as *const std::ffi::c_void,
-                );
-            },
-            ImageRgba8(img) => unsafe {
-                gl::TexImage2D(
-                    side,
-                    0,
-                    gl::RGBA8 as i32,
-                    img.width() as i32,
-                    img.height() as i32,
-                    0,
-                    gl::BGRA,
-                    gl::UNSIGNED_BYTE,
-                    img.as_ptr() as *const std::ffi::c_void,
-                );
-            },
-            _ => unimplemented!(),
-        }
-        Ok(())
-    }
-
     pub fn new_from_images(
         file_px: &str,
         file_nx: &str,
@@ -137,19 +128,19 @@ impl TextureCubeMap {
         file_ny: &str,
         file_pz: &str,
         file_nz: &str,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, String> {
         let mut t = TextureCubeMap { id: 0 };
         unsafe {
             gl::GenTextures(1, &mut t.id);
         };
         t.bind();
 
-        TextureCubeMap::setup_side(file_px, gl::TEXTURE_CUBE_MAP_POSITIVE_X)?;
-        TextureCubeMap::setup_side(file_nx, gl::TEXTURE_CUBE_MAP_NEGATIVE_X)?;
-        TextureCubeMap::setup_side(file_py, gl::TEXTURE_CUBE_MAP_POSITIVE_Y)?;
-        TextureCubeMap::setup_side(file_ny, gl::TEXTURE_CUBE_MAP_NEGATIVE_Y)?;
-        TextureCubeMap::setup_side(file_pz, gl::TEXTURE_CUBE_MAP_POSITIVE_Z)?;
-        TextureCubeMap::setup_side(file_nz, gl::TEXTURE_CUBE_MAP_NEGATIVE_Z)?;
+        setup_texture_from_image(file_px, gl::TEXTURE_CUBE_MAP_POSITIVE_X)?;
+        setup_texture_from_image(file_nx, gl::TEXTURE_CUBE_MAP_NEGATIVE_X)?;
+        setup_texture_from_image(file_py, gl::TEXTURE_CUBE_MAP_POSITIVE_Y)?;
+        setup_texture_from_image(file_ny, gl::TEXTURE_CUBE_MAP_NEGATIVE_Y)?;
+        setup_texture_from_image(file_pz, gl::TEXTURE_CUBE_MAP_POSITIVE_Z)?;
+        setup_texture_from_image(file_nz, gl::TEXTURE_CUBE_MAP_NEGATIVE_Z)?;
 
         unsafe {
             gl::TexParameteri(
