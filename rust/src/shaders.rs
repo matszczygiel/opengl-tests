@@ -15,40 +15,65 @@ impl Shader {
     pub fn new(
         vertex_shader_filename: &str,
         fragment_shader_filename: &str,
-    ) -> Result<Self, &'static str> {
-        let mut sh = Self { id: 0 };
-
+    ) -> Result<Self, String> {
         let vertex_sh = Shader::compile_shader_object(vertex_shader_filename, gl::VERTEX_SHADER)?;
         let fragment_sh =
             Shader::compile_shader_object(fragment_shader_filename, gl::FRAGMENT_SHADER)?;
 
-        println!("Linking program");
+        let id = Shader::link_shader_and_destroy_objects(vertex_sh, fragment_sh)?;
+        Ok(Self { id })
+    }
 
+    pub fn new_from_source(
+        vertex_shader_src: &str,
+        fragment_shader_src: &str,
+    ) -> Result<Self, String> {
+        let vertex_sh =
+            Shader::compile_shader_object_from_source(vertex_shader_src, gl::VERTEX_SHADER)?;
+        let fragment_sh =
+            Shader::compile_shader_object_from_source(fragment_shader_src, gl::FRAGMENT_SHADER)?;
+
+        let id = Shader::link_shader_and_destroy_objects(vertex_sh, fragment_sh)?;
+        Ok(Self { id })
+    }
+
+    fn link_shader_and_destroy_objects(
+        vertex_shader: gl::types::GLuint,
+        fragment_shader: gl::types::GLuint,
+    ) -> Result<gl::types::GLuint, String> {
+        let id = unsafe { gl::CreateProgram() };
         unsafe {
-            sh.id = gl::CreateProgram();
-            gl::AttachShader(sh.id, vertex_sh);
-            gl::AttachShader(sh.id, fragment_sh);
-            gl::LinkProgram(sh.id);
+            gl::AttachShader(id, vertex_shader);
+            gl::AttachShader(id, fragment_shader);
+            gl::LinkProgram(id);
+            gl::DetachShader(id, vertex_shader);
+            gl::DetachShader(id, fragment_shader);
+            gl::DeleteShader(vertex_shader);
+            gl::DeleteShader(fragment_shader);
         }
-        Shader::get_and_print_error_msg(sh.id);
-
-        unsafe {
-            gl::DetachShader(sh.id, vertex_sh);
-            gl::DetachShader(sh.id, fragment_sh);
-            gl::DeleteShader(vertex_sh);
-            gl::DeleteShader(fragment_sh);
+        let failure = Shader::if_and_print_error_msg(id);
+        if failure {
+            return Err(format!(
+                "Failed to link shader: {} from vert {} and frag {}",
+                id, vertex_shader, fragment_shader
+            ));
         }
-
-        Ok(sh)
+        Ok(id)
     }
 
     fn compile_shader_object(
         filename: &str,
         shader_type: gl::types::GLenum,
-    ) -> Result<gl::types::GLuint, &'static str> {
-        println!("Compiling shader {}", filename);
-        let source = fs::read_to_string(filename).expect("Cannot read shader source file.");
+    ) -> Result<gl::types::GLuint, String> {
+        let source = fs::read_to_string(filename)
+            .map_err(|_| format!("Cannot read shader source file: {}", filename))?;
+        Shader::compile_shader_object_from_source(&source, shader_type)
+    }
 
+    fn compile_shader_object_from_source(
+        source: &str,
+        shader_type: gl::types::GLenum,
+    ) -> Result<gl::types::GLuint, String> {
         let strptr: *const gl::types::GLchar = source.as_ptr() as *const i8;
         let strlen: gl::types::GLint = source.len().try_into().unwrap();
         let id;
@@ -57,12 +82,14 @@ impl Shader {
             gl::ShaderSource(id, 1, &strptr, &strlen);
             gl::CompileShader(id);
         }
-        Shader::get_and_print_error_msg(id);
-
-        return Ok(id);
+        let failure = Shader::if_and_print_error_msg(id);
+        if failure {
+            return Err(format!("Failed to compile shader: {}", id));
+        }
+        Ok(id)
     }
 
-    fn get_and_print_error_msg(id: gl::types::GLuint) {
+    fn if_and_print_error_msg(id: gl::types::GLuint) -> bool {
         let mut infolog_len: gl::types::GLint = 0;
         unsafe {
             gl::GetShaderiv(id, gl::INFO_LOG_LENGTH, &mut infolog_len);
@@ -79,7 +106,9 @@ impl Shader {
                 );
             }
             println!("{}", msg.to_string_lossy().to_owned());
+            return true;
         }
+        false
     }
 
     pub fn bind(&self) {

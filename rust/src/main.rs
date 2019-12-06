@@ -436,7 +436,7 @@ fn main() {
 
                     delta_t = time.elapsed();
                     time = Instant::now();
-                    println!("Time: {}ms", delta_t.as_micros() as f32 / 1000.0);
+                    //println!("Time: {}ms", delta_t.as_micros() as f32 / 1000.0);
                 }
                 _ => (),
             },

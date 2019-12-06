@@ -3,8 +3,12 @@ extern crate image;
 
 use std::convert::TryInto;
 use std::ffi::c_void;
+use std::fs::File;
+use std::io::BufReader;
 
 use image::*;
+
+use crate::shaders::*;
 
 pub struct Texture2D {
     id: gl::types::GLuint,
@@ -97,6 +101,37 @@ pub struct TextureCubeMap {
     id: gl::types::GLuint,
 }
 
+static HDR_CONVERSION_VERTEX_SHADER: &str = r#"
+#version 330 core
+layout (location = 0) in vec3 vertex_position;
+out vec3 local_position;
+uniform mat4 projection;
+uniform mat4 view;
+void main() {
+    local_position = vertex_position;  
+    gl_Position =  projection * view * vec4(vertex_position, 1.0);
+}
+"#;
+
+static HDR_CONVERSION_FRAGMENT_SHADER: &str = r#"
+#version 330 core
+out vec4 fragment_color;
+in vec3 local_position;
+uniform sampler2D equirectangular_map;
+const vec2 inv_atan = vec2(0.1591, 0.3183);
+vec2 sample_spherical_map(vec3 v) {
+    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
+    uv *= inv_atan;
+    uv += 0.5;
+    return uv;
+}
+void main() {		
+    vec2 uv = sample_spherical_map(normalize(local_position)); 
+    vec3 color = texture(equirectangularMap, uv).rgb;
+    fragment_color = vec4(color, 1.0);
+}
+"#;
+
 impl TextureCubeMap {
     pub fn new_from_images(
         file_px: &str,
@@ -149,10 +184,129 @@ impl TextureCubeMap {
         Ok(t)
     }
 
+    pub fn new_from_hdr(filename: &str) -> Result<Self, String> {
+        let file = File::open(filename).map_err(|_| format!("Cannot open: {}", filename))?;
+        let reader = io::Reader::open(filename)
+            .map_err(|_| format!("Cannot open file: {}", filename))?
+            .with_guessed_format()
+            .map_err(|_| format!("Cannot guess format of file: {}", filename))?;
+
+        if reader.format() != Some(ImageFormat::HDR) {
+            return Err(format!("File format of: {} is not HDR", filename));
+        }
+
+        let decoder = hdr::HDRDecoder::new(BufReader::new(file))
+            .map_err(|_| format!("Cannot create HDRdecoder for: {}", filename))?;
+        let meta = decoder.metadata();
+        let data = decoder
+            .read_image_hdr()
+            .map_err(|_| format!("Cannot read file: {}", filename))?;
+
+        let mut hdr_texture: gl::types::GLuint = 0;
+        unsafe {
+            gl::GenTextures(1, &mut hdr_texture);
+            gl::BindTexture(gl::TEXTURE_2D, hdr_texture);
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGB16F as i32,
+                meta.width as i32,
+                meta.height as i32,
+                0,
+                gl::RGB,
+                gl::FLOAT,
+                data.as_ptr() as *const std::ffi::c_void,
+            );
+
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_WRAP_S,
+                gl::CLAMP_TO_EDGE.try_into().unwrap(),
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_WRAP_T,
+                gl::CLAMP_TO_EDGE.try_into().unwrap(),
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MIN_FILTER,
+                gl::LINEAR.try_into().unwrap(),
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MAG_FILTER,
+                gl::LINEAR.try_into().unwrap(),
+            );
+        }
+
+        let conversion_shader =
+            Shader::new_from_source(HDR_CONVERSION_VERTEX_SHADER, HDR_CONVERSION_FRAGMENT_SHADER)
+                .map_err(|mut er| {
+                er.push_str(" in hdr to cube texture conversion");
+                er
+            })?;
+
+        let mut capture_fbo = 0;
+        let mut capture_rbo = 0;
+        unsafe {
+            gl::GenFramebuffers(1, &mut capture_fbo);
+            gl::GenRenderbuffers(1, &mut capture_rbo);
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
+            gl::BindRenderbuffer(gl::RENDERBUFFER, capture_rbo);
+            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, 512, 512);
+            gl::FramebufferRenderbuffer(
+                gl::FRAMEBUFFER,
+                gl::DEPTH_ATTACHMENT,
+                gl::RENDERBUFFER,
+                capture_rbo,
+            );
+        }
+
+        let mut env_cubemap = 0;
+        unsafe {
+            gl::GenTextures(1, &mut env_cubemap);
+            gl::BindTexture(gl::TEXTURE_CUBE_MAP, env_cubemap);
+        }
+        for i in 0..6 {
+            unsafe {
+                gl::TexImage2D(
+                    gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    0,
+                    gl::RGB16F as i32,
+                    512,
+                    512,
+                    0,
+                    gl::RGB,
+                    gl::FLOAT,
+                    std::ptr::null(),
+                );
+            }
+        }
+        unsafe {
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_R, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        }
+        let mut t = TextureCubeMap { id: 0 };
+
+        Ok(t)
+    }
+
     pub fn bind(&self) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_CUBE_MAP, self.id);
         }
+    }
+
+    pub fn set_slot(&self, val: &u32) {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + *val);
+        }
+        self.bind();
     }
 }
 
