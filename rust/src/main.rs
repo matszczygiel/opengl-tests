@@ -123,7 +123,7 @@ fn main() {
     .unwrap();
 
     let skybox_texture =
-        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr")
+        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", 1024)
             .unwrap();
 
     let sphere_shader = Shader::new(

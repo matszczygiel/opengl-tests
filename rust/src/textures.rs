@@ -252,7 +252,7 @@ impl TextureCubeMap {
         Ok(t)
     }
 
-    pub fn new_from_hdr(filename: &str) -> Result<Self, String> {
+    pub fn new_from_hdr(filename: &str, face_resolution: i32) -> Result<Self, String> {
         let (hdr_texture, hdr_width, hdr_height) = Texture2D::new_from_hdr(filename)?;
 
         let mut capture_fbo = 0;
@@ -263,7 +263,7 @@ impl TextureCubeMap {
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
             gl::BindRenderbuffer(gl::RENDERBUFFER, capture_rbo);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, 512, 512);
+            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, face_resolution, face_resolution);
             gl::FramebufferRenderbuffer(
                 gl::FRAMEBUFFER,
                 gl::DEPTH_ATTACHMENT,
@@ -283,8 +283,8 @@ impl TextureCubeMap {
                     gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
                     0,
                     gl::RGB16F as i32,
-                    512,
-                    512,
+                    face_resolution,
+                    face_resolution,
                     0,
                     gl::RGB,
                     gl::FLOAT,
@@ -368,7 +368,7 @@ impl TextureCubeMap {
         }
         hdr_texture.bind();
         unsafe {
-            gl::Viewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+            gl::Viewport(0, 0, face_resolution, face_resolution); 
             gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
         }
 
@@ -419,4 +419,8 @@ impl Drop for TextureCubeMap {
             gl::DeleteTextures(1, &self.id);
         }
     }
+}
+
+pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureCubeMap {
+    
 }
