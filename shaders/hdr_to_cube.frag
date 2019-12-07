@@ -15,7 +15,7 @@ vec2 sample_spherical_map(vec3 v) {
 void main() 
 {		
     vec2 uv = sample_spherical_map(normalize(local_position)); 
-    vec3 color = texture(equirectangularMap, uv).rgb;
+    vec3 color = texture(equirectangular_map, uv).rgb;
     
     fragment_color = vec4(color, 1.0);
 }

@@ -69,3 +69,143 @@ pub fn crate_sphere_buffers(radius: f32) -> (VertexArray, VertexBuffer, IndexBuf
 
     (va, vb, ib)
 }
+
+pub fn draw_sphere(sphere_ib: &IndexBuffer, sphere_va: &VertexArray) {
+    sphere_va.bind();
+    sphere_ib.bind();
+    unsafe {
+        gl::DrawElements(
+            gl::TRIANGLE_STRIP,
+            sphere_ib.count() as i32,
+            gl::UNSIGNED_INT,
+            std::ptr::null(),
+        );
+    }
+}
+
+pub fn crate_cube_buffers() -> (VertexArray, VertexBuffer) {
+    #[rustfmt::skip]
+    const VERTICES: [f32; 8*6*6] = [
+        // back face
+        -1.0, -1.0, -1.0,  0.0, 0.0,  0.0,  0.0, -1.0, // bottom-left
+         1.0,  1.0, -1.0,  1.0, 1.0,  0.0,  0.0, -1.0, // top-right
+         1.0, -1.0, -1.0,  1.0, 0.0,  0.0,  0.0, -1.0, // bottom-right         
+         1.0,  1.0, -1.0,  1.0, 1.0,  0.0,  0.0, -1.0, // top-right
+        -1.0, -1.0, -1.0,  0.0, 0.0,  0.0,  0.0, -1.0, // bottom-left
+        -1.0,  1.0, -1.0,  0.0, 1.0,  0.0,  0.0, -1.0, // top-left
+        // front face
+        -1.0, -1.0,  1.0,  0.0, 0.0,  0.0,  0.0,  1.0, // bottom-left
+         1.0, -1.0,  1.0,  1.0, 0.0,  0.0,  0.0,  1.0, // bottom-right
+         1.0,  1.0,  1.0,  1.0, 1.0,  0.0,  0.0,  1.0, // top-right
+         1.0,  1.0,  1.0,  1.0, 1.0,  0.0,  0.0,  1.0, // top-right
+        -1.0,  1.0,  1.0,  0.0, 1.0,  0.0,  0.0,  1.0, // top-left
+        -1.0, -1.0,  1.0,  0.0, 0.0,  0.0,  0.0,  1.0, // bottom-left
+        // left face
+        -1.0,  1.0,  1.0,  1.0, 0.0, -1.0,  0.0,  0.0, // top-right
+        -1.0,  1.0, -1.0,  1.0, 1.0, -1.0,  0.0,  0.0, // top-left
+        -1.0, -1.0, -1.0,  0.0, 1.0, -1.0,  0.0,  0.0, // bottom-left
+        -1.0, -1.0, -1.0,  0.0, 1.0, -1.0,  0.0,  0.0, // bottom-left
+        -1.0, -1.0,  1.0,  0.0, 0.0, -1.0,  0.0,  0.0, // bottom-right
+        -1.0,  1.0,  1.0,  1.0, 0.0, -1.0,  0.0,  0.0, // top-right
+        // right face
+         1.0,  1.0,  1.0,  1.0, 0.0,  1.0,  0.0,  0.0, // top-left
+         1.0, -1.0, -1.0,  0.0, 1.0,  1.0,  0.0,  0.0, // bottom-right
+         1.0,  1.0, -1.0,  1.0, 1.0,  1.0,  0.0,  0.0, // top-right         
+         1.0, -1.0, -1.0,  0.0, 1.0,  1.0,  0.0,  0.0, // bottom-right
+         1.0,  1.0,  1.0,  1.0, 0.0,  1.0,  0.0,  0.0, // top-left
+         1.0, -1.0,  1.0,  0.0, 0.0,  1.0,  0.0,  0.0, // bottom-left     
+        // bottom face
+        -1.0, -1.0, -1.0,  0.0, 1.0,  0.0, -1.0,  0.0, // top-right
+         1.0, -1.0, -1.0,  1.0, 1.0,  0.0, -1.0,  0.0, // top-left
+         1.0, -1.0,  1.0,  1.0, 0.0,  0.0, -1.0,  0.0, // bottom-left
+         1.0, -1.0,  1.0,  1.0, 0.0,  0.0, -1.0,  0.0, // bottom-left
+        -1.0, -1.0,  1.0,  0.0, 0.0,  0.0, -1.0,  0.0, // bottom-right
+        -1.0, -1.0, -1.0,  0.0, 1.0,  0.0, -1.0,  0.0, // top-right
+        // top face
+        -1.0,  1.0, -1.0,  0.0, 1.0,  0.0,  1.0,  0.0, // top-left
+         1.0,  1.0,  1.0,  1.0, 0.0,  0.0,  1.0,  0.0, // bottom-right
+         1.0,  1.0, -1.0,  1.0, 1.0,  0.0,  1.0,  0.0, // top-right     
+         1.0,  1.0,  1.0,  1.0, 0.0,  0.0,  1.0,  0.0, // bottom-right
+        -1.0,  1.0, -1.0,  0.0, 1.0,  0.0,  1.0,  0.0, // top-left
+        -1.0,  1.0,  1.0,  0.0, 0.0,  0.0,  1.0,  0.0 // bottom-left        
+    ];
+    let va = VertexArray::new();
+    va.bind();
+    let vb = VertexBuffer::new_static(&VERTICES);
+    vb.bind();
+    const STRIDE: i32 = 3 + 2 + 3;
+    va.set_vertex_attrib_array(0, 3, false, STRIDE, 0);
+    va.set_vertex_attrib_array(1, 2, false, STRIDE, 3);
+    va.set_vertex_attrib_array(2, 3, false, STRIDE, 5);
+    (va, vb)
+}
+
+pub fn draw_cube(va: &VertexArray) {
+    va.bind();
+    unsafe {
+        gl::DrawArrays(gl::TRIANGLES, 0, 36);
+    }
+}
+
+pub fn create_skybox_buffers() -> (VertexArray, VertexBuffer) {
+    #[rustfmt::skip]
+    let VERTICES: [f32; 6*6*3] = [
+        -1.0,  1.0,  -1.0,
+        -1.0, -1.0,  -1.0,
+         1.0, -1.0,  -1.0,
+         1.0, -1.0,  -1.0,
+         1.0,  1.0,  -1.0,
+        -1.0,  1.0,  -1.0,
+
+        -1.0, -1.0,  1.0,
+        -1.0, -1.0, -1.0,
+        -1.0,  1.0, -1.0,
+        -1.0,  1.0, -1.0,
+        -1.0,  1.0,  1.0,
+        -1.0, -1.0,  1.0,
+
+         1.0, -1.0, -1.0,
+         1.0, -1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0, -1.0,
+         1.0, -1.0, -1.0,
+
+        -1.0, -1.0,  1.0,
+        -1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+         1.0, -1.0,  1.0,
+        -1.0, -1.0,  1.0,
+
+        -1.0,  1.0, -1.0,
+         1.0,  1.0, -1.0,
+         1.0,  1.0,  1.0,
+         1.0,  1.0,  1.0,
+        -1.0,  1.0,  1.0,
+        -1.0,  1.0, -1.0,
+
+        -1.0, -1.0, -1.0,
+        -1.0, -1.0,  1.0,
+         1.0, -1.0, -1.0,
+         1.0, -1.0, -1.0,
+        -1.0, -1.0,  1.0,
+         1.0, -1.0,  1.0];
+
+    let va = VertexArray::new();
+    va.bind();
+    let vb = VertexBuffer::new_static(&VERTICES);
+    vb.bind();
+    const STRIDE: i32 = 3;
+    va.set_vertex_attrib_array(0, 3, false, STRIDE, 0);
+    (va, vb)
+}
+
+pub fn draw_skybox(va: &VertexArray) {
+    va.bind();
+    unsafe {
+        gl::DepthFunc(gl::LEQUAL);
+        gl::DrawArrays(gl::TRIANGLES, 0, 36);
+        gl::DepthFunc(gl::LESS);
+    }
+}

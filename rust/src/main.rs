@@ -70,6 +70,10 @@ fn main() {
     let window = windowed_context.window();
     window.set_cursor_visible(false);
     window.set_cursor_grab(true).unwrap();
+    let (framebuffer_width, framebuffer_height): (u32, u32) = window
+        .inner_size()
+        .to_physical(window.hidpi_factor())
+        .into();
 
     println!("{:?}", windowed_context.get_pixel_format());
 
@@ -100,62 +104,15 @@ fn main() {
 
         gl::Enable(gl::DEPTH_TEST);
         gl::DepthFunc(gl::LESS);
-        gl::Enable(gl::CULL_FACE);
+        //gl::Enable(gl::CULL_FACE);
 
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
     }
 
-    #[rustfmt::skip]
-    let skybox_vertices: [f32; 6*6*3] = [
-        -1.0,  1.0,  -1.0,
-        -1.0, -1.0,  -1.0,
-         1.0, -1.0,  -1.0,
-         1.0, -1.0,  -1.0,
-         1.0,  1.0,  -1.0,
-        -1.0,  1.0,  -1.0,
-
-        -1.0, -1.0,  1.0,
-        -1.0, -1.0, -1.0,
-        -1.0,  1.0, -1.0,
-        -1.0,  1.0, -1.0,
-        -1.0,  1.0,  1.0,
-        -1.0, -1.0,  1.0,
-
-         1.0, -1.0, -1.0,
-         1.0, -1.0,  1.0,
-         1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-         1.0,  1.0, -1.0,
-         1.0, -1.0, -1.0,
-
-        -1.0, -1.0,  1.0,
-        -1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-         1.0, -1.0,  1.0,
-        -1.0, -1.0,  1.0,
-
-        -1.0,  1.0, -1.0,
-         1.0,  1.0, -1.0,
-         1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-        -1.0,  1.0,  1.0,
-        -1.0,  1.0, -1.0,
-
-        -1.0, -1.0, -1.0,
-        -1.0, -1.0,  1.0,
-         1.0, -1.0, -1.0,
-         1.0, -1.0, -1.0,
-        -1.0, -1.0,  1.0,
-         1.0, -1.0,  1.0];
-
-    let skybox_va = VertexArray::new();
-    let skybox_vb = VertexBuffer::new_static(&skybox_vertices);
-    skybox_vb.bind();
-    skybox_va.set_vertex_attrib_array(0, 3, false, 0, 0);
+    let (skybox_va, _skybox_vb) = create_skybox_buffers();
     let skybox_shader = Shader::new("../shaders/skybox.vert", "../shaders/skybox.frag").unwrap();
-    let skybox_texture = TextureCubeMap::new_from_images(
+    let skybox_texture_old = TextureCubeMap::new_from_images(
         "../resources/cubemap/px.png",
         "../resources/cubemap/nx.png",
         "../resources/cubemap/py.png",
@@ -164,6 +121,10 @@ fn main() {
         "../resources/cubemap/nz.png",
     )
     .unwrap();
+
+    let skybox_texture =
+        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr")
+            .unwrap();
 
     let sphere_shader = Shader::new(
         "../shaders/sphere_textured_pbr.vert",
@@ -218,7 +179,7 @@ fn main() {
         },
     ];
 
-    let (sphere_va, sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
+    let (sphere_va, _sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
 
     let albendo_texture = Texture2D::new_from_image("../resources/rusted_iron/albedo.png").unwrap();
     let ao_texture = Texture2D::new_from_image("../resources/rusted_iron/ao.png").unwrap();
@@ -235,6 +196,10 @@ fn main() {
     const MOUSE_SPEED: f32 = 0.002;
 
     let mut window_focused = true;
+
+    unsafe {
+        gl::Viewport(0, 0, framebuffer_width as i32, framebuffer_height as i32);
+    }
 
     let mut time = Instant::now();
     let mut delta_t = time.elapsed();
@@ -421,16 +386,12 @@ fn main() {
                         v
                     };
                     skybox_shader.bind();
-                    skybox_va.bind();
                     skybox_shader.set_uniform_mat4f("view", &skybox_view);
                     skybox_shader.set_uniform_mat4f("projection", &projection);
-                    skybox_texture.bind();
                     skybox_shader.set_texture_slot("skybox", &0);
-                    unsafe {
-                        gl::DepthFunc(gl::LEQUAL);
-                        gl::DrawArrays(gl::TRIANGLES, 0, 36);
-                        gl::DepthFunc(gl::LESS);
-                    }
+                    skybox_texture.bind();
+
+                    draw_skybox(&skybox_va);
 
                     windowed_context.swap_buffers().unwrap();
 
