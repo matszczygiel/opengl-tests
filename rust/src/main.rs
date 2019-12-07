@@ -104,7 +104,7 @@ fn main() {
 
         gl::Enable(gl::DEPTH_TEST);
         gl::DepthFunc(gl::LESS);
-        //gl::Enable(gl::CULL_FACE);
+        gl::Enable(gl::CULL_FACE);
 
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -329,9 +329,6 @@ fn main() {
                     sphere_shader.set_texture_slot("ao_map", &4);
                     ao_texture.bind();
 
-                    sphere_va.bind();
-                    sphere_ib.bind();
-
                     const ROWS: i32 = 1;
                     const COLS: i32 = 1;
                     const SPACING: f32 = 2.5;
@@ -348,15 +345,7 @@ fn main() {
                             ) * SPACING;
                             let model = Matrix4::<f32>::from_translation(translation);
                             sphere_shader.set_uniform_mat4f("model", &model);
-
-                            unsafe {
-                                gl::DrawElements(
-                                    gl::TRIANGLE_STRIP,
-                                    sphere_ib.count() as i32,
-                                    gl::UNSIGNED_INT,
-                                    std::ptr::null(),
-                                );
-                            }
+                            draw_sphere(&sphere_ib, &sphere_va);
                         }
                     }
 
@@ -365,14 +354,7 @@ fn main() {
                             * Matrix4::<f32>::from_scale(0.5);
 
                         sphere_shader.set_uniform_mat4f("model", &model);
-                        unsafe {
-                            gl::DrawElements(
-                                gl::TRIANGLE_STRIP,
-                                sphere_ib.count() as i32,
-                                gl::UNSIGNED_INT,
-                                std::ptr::null(),
-                            );
-                        }
+                        draw_sphere(&sphere_ib, &sphere_va);
                     }
                     let skybox_view = {
                         let mut v = view.clone();
@@ -389,7 +371,7 @@ fn main() {
                     skybox_shader.set_uniform_mat4f("view", &skybox_view);
                     skybox_shader.set_uniform_mat4f("projection", &projection);
                     skybox_shader.set_texture_slot("skybox", &0);
-                    skybox_texture.bind();
+                    skybox_texture.set_slot(&0);
 
                     draw_skybox(&skybox_va);
 

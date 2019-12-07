@@ -149,7 +149,7 @@ pub fn draw_cube(va: &VertexArray) {
 
 pub fn create_skybox_buffers() -> (VertexArray, VertexBuffer) {
     #[rustfmt::skip]
-    let VERTICES: [f32; 6*6*3] = [
+    const VERTICES: [f32; 6*6*3] = [
         -1.0,  1.0,  -1.0,
         -1.0, -1.0,  -1.0,
          1.0, -1.0,  -1.0,

@@ -367,12 +367,15 @@ impl TextureCubeMap {
             gl::ActiveTexture(gl::TEXTURE0);
         }
         hdr_texture.bind();
-        unsafe{
+        unsafe {
             gl::Viewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
             gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
         }
 
         let (va, _vb) = crate_cube_buffers();
+        unsafe {
+            gl::FrontFace(gl::CW);
+        }
         for i in 0..6 {
             conversion_shader.set_uniform_mat4f("view", &views[i]);
             unsafe {
@@ -389,6 +392,7 @@ impl TextureCubeMap {
         }
 
         unsafe {
+            gl::FrontFace(gl::CCW);
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
         }
 
