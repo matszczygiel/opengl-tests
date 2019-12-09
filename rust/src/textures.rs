@@ -394,6 +394,9 @@ impl TextureCubeMap {
         unsafe {
             gl::FrontFace(gl::CCW);
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+            gl::DeleteFramebuffers(1, &capture_fbo);
+            gl::DeleteRenderbuffers(1, &capture_rbo);
         }
 
         Ok(TextureCubeMap { id: env_cubemap })
@@ -422,5 +425,50 @@ impl Drop for TextureCubeMap {
 }
 
 pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureCubeMap {
-    
+    let mut irradiance_map = TextureCubeMap{id : 0};
+    unsafe {
+        gl::GenTextures(1, & mut irradiance_map.id);
+    }
+    irradiance_map.bind();
+    const IRR_MAP_SIZE : i32 = 32;
+
+    unsafe {
+        for i in 0..6 {
+                gl::TexImage2D(gl::TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl::RGB16F as i32, IRR_MAP_SIZE, IRR_MAP_SIZE, 0, gl::RGB, gl::FLOAT, std::ptr::null());
+        }
+        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_R, gl::CLAMP_TO_EDGE as i32);
+    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+    }
+
+    let mut capture_fbo = 0;
+    let mut capture_rbo = 0;
+    unsafe {
+        gl::GenFramebuffers(1, &mut capture_fbo);
+        gl::GenRenderbuffers(1, &mut capture_rbo);
+    gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
+    gl::BindRenderbuffer(gl::RENDERBUFFER,  capture_rbo);
+    gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, IRR_MAP_SIZE, IRR_MAP_SIZE);
+    }
+
+    irradianceShader.use();
+    irradianceShader.setInt("environmentMap", 0);
+    irradianceShader.setMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+    glViewport(0, 0, 32, 32); // don't forget to configure the viewport to the capture dimensions.
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        irradianceShader.setMat4("view", captureViews[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        renderCube();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 }
