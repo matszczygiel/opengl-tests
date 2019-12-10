@@ -46,6 +46,9 @@ extern "system" fn debug_callback(
             CStr::from_ptr(message as *const c_char)
         );
     }
+    if gltype == gl::DEBUG_TYPE_ERROR {
+        panic!();
+    }
 }
 
 fn main() {
@@ -121,15 +124,11 @@ fn main() {
 
     let irradiance_map = compute_irradiance_map(&skybox_texture);
 
-    let sphere_shader = Shader::new(
-        "../shaders/sphere_pbr.vert",
-        "../shaders/sphere_pbr.frag",
-    )
-    .unwrap();
+    let sphere_shader =
+        Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
     sphere_shader.set_uniform_3f("albedo", &vec3(0.5, 0.0, 0.0));
     sphere_shader.set_uniform_1f("ao", &1.0);
     sphere_shader.set_uniform_1i("irradiance_map", &0);
-
 
     let light_positions = [
         Vector3::<f32> {

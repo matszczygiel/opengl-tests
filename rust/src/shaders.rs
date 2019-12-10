@@ -51,7 +51,7 @@ impl Shader {
             gl::DeleteShader(vertex_shader);
             gl::DeleteShader(fragment_shader);
         }
-        let failure = Shader::if_and_print_error_msg(id);
+        let failure = Shader::if_and_print_error_msg_from_program(id);
         if failure {
             return Err(format!(
                 "Failed to link shader: {} from vert {} and frag {}",
@@ -82,14 +82,14 @@ impl Shader {
             gl::ShaderSource(id, 1, &strptr, &strlen);
             gl::CompileShader(id);
         }
-        let failure = Shader::if_and_print_error_msg(id);
+        let failure = Shader::if_and_print_error_msg_from_objects(id);
         if failure {
             return Err(format!("Failed to compile shader: {}", id));
         }
         Ok(id)
     }
 
-    fn if_and_print_error_msg(id: gl::types::GLuint) -> bool {
+    fn if_and_print_error_msg_from_objects(id: gl::types::GLuint) -> bool {
         let mut infolog_len: gl::types::GLint = 0;
         unsafe {
             gl::GetShaderiv(id, gl::INFO_LOG_LENGTH, &mut infolog_len);
@@ -99,6 +99,28 @@ impl Shader {
             let msg = create_cstring_whitespace(infolog_len as usize);
             unsafe {
                 gl::GetShaderInfoLog(
+                    id,
+                    infolog_len,
+                    std::ptr::null_mut(),
+                    msg.as_ptr() as *mut i8,
+                );
+            }
+            println!("{}", msg.to_string_lossy().to_owned());
+            return true;
+        }
+        false
+    }
+
+    fn if_and_print_error_msg_from_program(id: gl::types::GLuint) -> bool {
+        let mut infolog_len: gl::types::GLint = 0;
+        unsafe {
+            gl::GetProgramiv(id, gl::INFO_LOG_LENGTH, &mut infolog_len);
+        }
+
+        if infolog_len > 0 {
+            let msg = create_cstring_whitespace(infolog_len as usize);
+            unsafe {
+                gl::GetProgramInfoLog(
                     id,
                     infolog_len,
                     std::ptr::null_mut(),
