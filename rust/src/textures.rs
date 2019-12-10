@@ -172,11 +172,11 @@ pub struct TextureCubeMap {
 static CUBE_VERTEX_SHADER: &str = r#"
 #version 330 core
 layout (location = 0) in vec3 vertex_position;
-out vec3 local_position;
+out vec3 world_position;
 uniform mat4 projection;
 uniform mat4 view;
 void main() {
-    local_position = vertex_position;  
+    world_position = vertex_position;  
     gl_Position =  projection * view * vec4(vertex_position, 1.0);
 }
 "#;
@@ -184,7 +184,7 @@ void main() {
 static HDR_CONVERSION_FRAGMENT_SHADER: &str = r#"
 #version 330 core
 out vec4 fragment_color;
-in vec3 local_position;
+in vec3 world_position;
 uniform sampler2D equirectangular_map;
 const vec2 inv_atan = vec2(0.1591, 0.3183);
 vec2 sample_spherical_map(vec3 v) {
@@ -194,7 +194,7 @@ vec2 sample_spherical_map(vec3 v) {
     return uv;
 }
 void main() {		
-    vec2 uv = sample_spherical_map(normalize(local_position)); 
+    vec2 uv = sample_spherical_map(-normalize(world_position)); 
     vec3 color = texture(equirectangular_map, uv).rgb;
     fragment_color = vec4(color, 1.0);
 }
@@ -203,11 +203,11 @@ void main() {
 static IRRADIANCE_CONVOLUTION_FRAGMENT_SHADER: &str = r#"
 #version 330 core
 out vec4 fragment_color;
-in vec3 local_position;
+in vec3 world_position;
 uniform samplerCube environmental_map;
 const float PI = 3.14159265359;
 void main() {
-    vec3 N     = normalize(local_position);
+    vec3 N     = normalize(world_position);
     vec3 up    = vec3(0.0, 1.0, 0.0);
     vec3 right = cross(up, N);
     up         = cross(N, right);
@@ -223,7 +223,7 @@ void main() {
             n_samples++;
         }
     }
-    irradiance = PI * irradiance * (1.0 / float(n_samples));
+    irradiance = PI * irradiance / float(n_samples);
     fragment_color = vec4(irradiance, 1.0);
 }
 "#;
@@ -317,7 +317,7 @@ impl TextureCubeMap {
     }
 
     pub fn new_from_hdr(filename: &str, face_resolution: i32) -> Result<Self, String> {
-        let (hdr_texture, hdr_width, hdr_height) = Texture2D::new_from_hdr(filename)?;
+        let (hdr_texture, _, _) = Texture2D::new_from_hdr(filename)?;
 
         let mut capture_fbo = 0;
         let mut capture_rbo = 0;
@@ -530,9 +530,8 @@ pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureC
             .unwrap();
     irradiance_shader.bind();
     irradiance_shader.set_uniform_1i("environmental_map", &0);
-    irradiance_shader.set_uniform_mat4f("projection", &CAPTURE_PERSPECTIVE);
-
     hdr_enviromental_map.set_slot(&0);
+    irradiance_shader.set_uniform_mat4f("projection", &CAPTURE_PERSPECTIVE);
 
     unsafe {
         gl::Viewport(0, 0, IRR_MAP_SIZE, IRR_MAP_SIZE);
@@ -552,6 +551,7 @@ pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureC
             );
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
+        irradiance_shader.bind();
         draw_cube(&va);
     }
 
