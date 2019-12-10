@@ -564,3 +564,55 @@ pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureC
 
     irradiance_map
 }
+
+pub fn compute_prefiltered_env_map(hdr_enviromental_map: &TextureCubeMap) -> TextureCubeMap {
+    let mut prefiltered_env_map = TextureCubeMap { id: 0 };
+    unsafe {
+        gl::GenTextures(1, &mut prefiltered_env_map.id);
+    }
+    prefiltered_env_map.bind();
+
+    const PREFILTERED_MAP_SIZE: i32 = 128;
+    unsafe {
+        for i in 0..6 {
+            gl::TexImage2D(
+                gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0,
+                gl::RGB16F as i32,
+                PREFILTERED_MAP_SIZE,
+                PREFILTERED_MAP_SIZE,
+                0,
+                gl::RGB,
+                gl::FLOAT,
+                std::ptr::null(),
+            );
+        }
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_S,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_T,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_R,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_MIN_FILTER,
+            gl::LINEAR_MIPMAP_LINEAR as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_MAG_FILTER,
+            gl::LINEAR as i32,
+        );
+        gl::GenerateMipmap(gl::TEXTURE_CUBE_MAP);
+    }
+    prefiltered_env_map
+}
