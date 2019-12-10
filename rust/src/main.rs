@@ -114,28 +114,22 @@ fn main() {
 
     let (skybox_va, _skybox_vb) = create_skybox_buffers();
     let skybox_shader = Shader::new("../shaders/skybox.vert", "../shaders/skybox.frag").unwrap();
-    let skybox_texture_old = TextureCubeMap::new_from_images(
-        "../resources/cubemap/px.png",
-        "../resources/cubemap/nx.png",
-        "../resources/cubemap/py.png",
-        "../resources/cubemap/ny.png",
-        "../resources/cubemap/pz.png",
-        "../resources/cubemap/nz.png",
-    )
-    .unwrap();
 
-    let skybox_texture_hdr =
+    let skybox_texture =
         TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", 1024)
             .unwrap();
 
-    let skybox_texture = compute_irradiance_map(&skybox_texture_hdr);
+    let irradiance_map = compute_irradiance_map(&skybox_texture);
 
     let sphere_shader = Shader::new(
-        "../shaders/sphere_textured_pbr.vert",
-        "../shaders/sphere_textured_pbr.frag",
+        "../shaders/sphere_pbr.vert",
+        "../shaders/sphere_pbr.frag",
     )
     .unwrap();
-    sphere_shader.bind();
+    sphere_shader.set_uniform_3f("albedo", &vec3(0.5, 0.0, 0.0));
+    sphere_shader.set_uniform_1f("ao", &1.0);
+    sphere_shader.set_uniform_1i("irradiance_map", &0);
+
 
     let light_positions = [
         Vector3::<f32> {
@@ -184,14 +178,6 @@ fn main() {
     ];
 
     let (sphere_va, _sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
-
-    let albendo_texture = Texture2D::new_from_image("../resources/rusted_iron/albedo.png").unwrap();
-    let ao_texture = Texture2D::new_from_image("../resources/rusted_iron/ao.png").unwrap();
-    let metallic_texture =
-        Texture2D::new_from_image("../resources/rusted_iron/metallic.png").unwrap();
-    let normal_texture = Texture2D::new_from_image("../resources/rusted_iron/normal.png").unwrap();
-    let roughness_texture =
-        Texture2D::new_from_image("../resources/rusted_iron/roughness.png").unwrap();
 
     let mut cam = Camera::new_default(WIDTH, HEIGHT);
     cam.position.z = 5.0;
@@ -312,6 +298,7 @@ fn main() {
                     sphere_shader.set_uniform_mat4f("view", &view);
                     let cam_pos = cam.position.to_homogeneous().truncate();
                     sphere_shader.set_uniform_3f("world_cam_posiiton", &cam_pos);
+                    irradiance_map.set_slot(&0);
 
                     for i in 0..light_positions.len() {
                         sphere_shader.set_uniform_3f(
@@ -322,25 +309,16 @@ fn main() {
                             .set_uniform_3f(&format!("light_colors[{}]", i), &light_colors[i]);
                     }
 
-                    sphere_shader.set_texture_slot("albedo_map", &0);
-                    albendo_texture.bind();
-                    sphere_shader.set_texture_slot("normal_map", &1);
-                    normal_texture.bind();
-                    sphere_shader.set_texture_slot("metallic_map", &2);
-                    metallic_texture.bind();
-                    sphere_shader.set_texture_slot("roughness_map", &3);
-                    roughness_texture.bind();
-                    sphere_shader.set_texture_slot("ao_map", &4);
-                    ao_texture.bind();
-
-                    const ROWS: i32 = 1;
-                    const COLS: i32 = 1;
+                    const ROWS: i32 = 7;
+                    const COLS: i32 = 7;
                     const SPACING: f32 = 2.5;
 
                     for row in 0..ROWS {
                         let metallness = row as f32 / ROWS as f32;
+                        sphere_shader.set_uniform_1f("metallic", &metallness);
                         for col in 0..COLS {
                             let roughness = (col as f32 / COLS as f32).max(0.05).min(1.0);
+                            sphere_shader.set_uniform_1f("roughness", &roughness);
 
                             let translation = vec3::<f32>(
                                 col as f32 - (COLS as f32 / 2.0),
