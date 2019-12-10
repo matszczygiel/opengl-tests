@@ -169,7 +169,7 @@ pub struct TextureCubeMap {
     id: gl::types::GLuint,
 }
 
-static HDR_CONVERSION_VERTEX_SHADER: &str = r#"
+static CUBE_VERTEX_SHADER: &str = r#"
 #version 330 core
 layout (location = 0) in vec3 vertex_position;
 out vec3 local_position;
@@ -199,6 +199,70 @@ void main() {
     fragment_color = vec4(color, 1.0);
 }
 "#;
+
+static IRRADIANCE_CONVOLUTION_FRAGMENT_SHADER: &str = r#"
+#version 330 core
+out vec4 fragment_color;
+in vec3 local_position;
+uniform samplerCube environmental_map;
+const float PI = 3.14159265359;
+void main() {
+    vec3 N = normalize(local_position);
+    vec3 up    = vec3(0.0, 1.0, 0.0);
+    vec3 right = cross(up, N);
+    up            = cross(N, right);
+    
+    vec3 irradiance = vec3(0.0);   
+    float sample_delta = 0.025;
+    int n_samples = 0;
+    for(float phi = 0.0; phi < 2.0 * PI; phi += sample_delta) {
+        for(float theta = 0.0; theta < 0.5 * PI; theta += sample_delta) {
+            vec3 tangent_sample = vec3(sin(theta) * cos(phi),  sin(theta) * sin(phi), cos(theta));
+            vec3 world_sample = tangent_sample.x * right + tangent_sample.y * up + tangent_sample.z * N; 
+            irradiance += texture(environmental_map, world_sample).rgb * cos(theta) * sin(theta);
+            n_samples++;
+        }
+    }
+    irradiance = PI * irradiance * (1.0 / float(n_samples));
+    fragment_color = vec4(irradiance, 1.0);
+}
+"#;
+
+lazy_static! {
+    static ref CAPTURE_PERSPECTIVE: Matrix4<f32> = perspective(Deg(90.0), 1.0, 0.1, 10.0);
+    static ref CAPTURE_VIEWS: [Matrix4<f32>; 6] = [
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            vec3(0.0, -1.0, 0.0),
+        ),
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(-1.0, 0.0, 0.0),
+            vec3(0.0, -1.0, 0.0),
+        ),
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+            vec3(0.0, 0.0, 1.0),
+        ),
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(0.0, -1.0, 0.0),
+            vec3(0.0, 0.0, -1.0),
+        ),
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(0.0, 0.0, 1.0),
+            vec3(0.0, -1.0, 0.0),
+        ),
+        Matrix4::look_at(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(0.0, 0.0, -1.0),
+            vec3(0.0, -1.0, 0.0),
+        ),
+    ];
+}
 
 impl TextureCubeMap {
     pub fn new_from_images(
@@ -263,7 +327,12 @@ impl TextureCubeMap {
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
             gl::BindRenderbuffer(gl::RENDERBUFFER, capture_rbo);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, face_resolution, face_resolution);
+            gl::RenderbufferStorage(
+                gl::RENDERBUFFER,
+                gl::DEPTH_COMPONENT24,
+                face_resolution,
+                face_resolution,
+            );
             gl::FramebufferRenderbuffer(
                 gl::FRAMEBUFFER,
                 gl::DEPTH_ATTACHMENT,
@@ -320,55 +389,23 @@ impl TextureCubeMap {
             );
         }
 
-        let perspective: Matrix4<f32> = perspective(Deg(90.0), 1.0, 0.1, 10.0);
-        let views: [Matrix4<f32>; 6] = [
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(1.0, 0.0, 0.0),
-                vec3(0.0, -1.0, 0.0),
-            ),
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(-1.0, 0.0, 0.0),
-                vec3(0.0, -1.0, 0.0),
-            ),
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(0.0, 1.0, 0.0),
-                vec3(0.0, 0.0, 1.0),
-            ),
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(0.0, -1.0, 0.0),
-                vec3(0.0, 0.0, -1.0),
-            ),
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(0.0, 0.0, 1.0),
-                vec3(0.0, -1.0, 0.0),
-            ),
-            Matrix4::look_at(
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(0.0, 0.0, -1.0),
-                vec3(0.0, -1.0, 0.0),
-            ),
-        ];
         let conversion_shader =
-            Shader::new_from_source(HDR_CONVERSION_VERTEX_SHADER, HDR_CONVERSION_FRAGMENT_SHADER)
-                .map_err(|mut er| {
-                er.push_str(" in hdr to cube texture conversion");
-                er
-            })?;
+            Shader::new_from_source(CUBE_VERTEX_SHADER, HDR_CONVERSION_FRAGMENT_SHADER).map_err(
+                |mut er| {
+                    er.push_str(" in hdr to cube texture conversion");
+                    er
+                },
+            )?;
 
         conversion_shader.bind();
         conversion_shader.set_uniform_1i("equirectangular_map", &0);
-        conversion_shader.set_uniform_mat4f("projection", &perspective);
+        conversion_shader.set_uniform_mat4f("projection", &CAPTURE_PERSPECTIVE);
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0);
         }
         hdr_texture.bind();
         unsafe {
-            gl::Viewport(0, 0, face_resolution, face_resolution); 
+            gl::Viewport(0, 0, face_resolution, face_resolution);
             gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
         }
 
@@ -376,8 +413,8 @@ impl TextureCubeMap {
         unsafe {
             gl::FrontFace(gl::CW);
         }
-        for i in 0..6 {
-            conversion_shader.set_uniform_mat4f("view", &views[i]);
+        for i in 0..CAPTURE_VIEWS.len() {
+            conversion_shader.set_uniform_mat4f("view", &CAPTURE_VIEWS[i]);
             unsafe {
                 gl::FramebufferTexture2D(
                     gl::FRAMEBUFFER,
@@ -425,22 +462,52 @@ impl Drop for TextureCubeMap {
 }
 
 pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureCubeMap {
-    let mut irradiance_map = TextureCubeMap{id : 0};
+    let mut irradiance_map = TextureCubeMap { id: 0 };
     unsafe {
-        gl::GenTextures(1, & mut irradiance_map.id);
+        gl::GenTextures(1, &mut irradiance_map.id);
     }
     irradiance_map.bind();
-    const IRR_MAP_SIZE : i32 = 32;
+    const IRR_MAP_SIZE: i32 = 32;
 
     unsafe {
         for i in 0..6 {
-                gl::TexImage2D(gl::TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl::RGB16F as i32, IRR_MAP_SIZE, IRR_MAP_SIZE, 0, gl::RGB, gl::FLOAT, std::ptr::null());
+            gl::TexImage2D(
+                gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0,
+                gl::RGB16F as i32,
+                IRR_MAP_SIZE,
+                IRR_MAP_SIZE,
+                0,
+                gl::RGB,
+                gl::FLOAT,
+                std::ptr::null(),
+            );
         }
-        gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
-    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_R, gl::CLAMP_TO_EDGE as i32);
-    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-    gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_S,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_T,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_WRAP_R,
+            gl::CLAMP_TO_EDGE as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_MIN_FILTER,
+            gl::LINEAR as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_CUBE_MAP,
+            gl::TEXTURE_MAG_FILTER,
+            gl::LINEAR as i32,
+        );
     }
 
     let mut capture_fbo = 0;
@@ -448,27 +515,52 @@ pub fn compute_irradiance_map(hdr_enviromental_map: &TextureCubeMap) -> TextureC
     unsafe {
         gl::GenFramebuffers(1, &mut capture_fbo);
         gl::GenRenderbuffers(1, &mut capture_rbo);
-    gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
-    gl::BindRenderbuffer(gl::RENDERBUFFER,  capture_rbo);
-    gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT24, IRR_MAP_SIZE, IRR_MAP_SIZE);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
+        gl::BindRenderbuffer(gl::RENDERBUFFER, capture_rbo);
+        gl::RenderbufferStorage(
+            gl::RENDERBUFFER,
+            gl::DEPTH_COMPONENT24,
+            IRR_MAP_SIZE,
+            IRR_MAP_SIZE,
+        );
     }
 
-    irradianceShader.use();
-    irradianceShader.setInt("environmentMap", 0);
-    irradianceShader.setMat4("projection", captureProjection);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    let irradiance_shader =
+        Shader::new_from_source(&CUBE_VERTEX_SHADER, &IRRADIANCE_CONVOLUTION_FRAGMENT_SHADER)
+            .unwrap();
+    irradiance_shader.bind();
+    irradiance_shader.set_uniform_1i("environmental_map", &0);
+    irradiance_shader.set_uniform_mat4f("projection", &CAPTURE_PERSPECTIVE);
 
-    glViewport(0, 0, 32, 32); // don't forget to configure the viewport to the capture dimensions.
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    for (unsigned int i = 0; i < 6; ++i)
-    {
-        irradianceShader.setMat4("view", captureViews[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    hdr_enviromental_map.set_slot(&0);
 
-        renderCube();
+    unsafe {
+        gl::Viewport(0, 0, IRR_MAP_SIZE, IRR_MAP_SIZE);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, capture_fbo);
+        gl::FrontFace(gl::CW);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    let (va, _vb) = crate_cube_buffers();
+    for i in 0..CAPTURE_VIEWS.len() {
+        irradiance_shader.set_uniform_mat4f("view", &CAPTURE_VIEWS[i]);
+        unsafe {
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_CUBE_MAP_POSITIVE_X + i as u32,
+                irradiance_map.id,
+                0,
+            );
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+        }
+        draw_cube(&va);
+    }
 
+    unsafe {
+        gl::FrontFace(gl::CCW);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+        gl::DeleteFramebuffers(1, &capture_fbo);
+        gl::DeleteRenderbuffers(1, &capture_rbo);
+    }
+
+    irradiance_map
 }

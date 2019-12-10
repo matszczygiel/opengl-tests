@@ -2,6 +2,8 @@ extern crate cgmath;
 extern crate gl;
 extern crate glutin;
 extern crate wavefront_obj;
+#[macro_use]
+extern crate lazy_static;
 
 mod buffers;
 mod camera;
@@ -122,9 +124,11 @@ fn main() {
     )
     .unwrap();
 
-    let skybox_texture =
+    let skybox_texture_hdr =
         TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", 1024)
             .unwrap();
+
+    let skybox_texture = compute_irradiance_map(&skybox_texture_hdr);
 
     let sphere_shader = Shader::new(
         "../shaders/sphere_textured_pbr.vert",
