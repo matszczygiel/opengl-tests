@@ -121,12 +121,21 @@ fn main() {
     let skybox_shader = Shader::new("../shaders/skybox.vert", "../shaders/skybox.frag").unwrap();
 
     const ENV_MAP_FACE_RESOLUTION: i32 = 1024;
-    let skybox_texture =
-        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", ENV_MAP_FACE_RESOLUTION)
-            .unwrap();
+    let skybox_texture = TextureCubeMap::new_from_hdr(
+        "../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr",
+        ENV_MAP_FACE_RESOLUTION,
+    )
+    .unwrap();
 
     let irradiance_map = compute_irradiance_map(&skybox_texture);
     let prefiltered_env_map = compute_prefiltered_env_map(&skybox_texture, ENV_MAP_FACE_RESOLUTION);
+    let lut_texture = compute_lut_texture(512);
+
+    let simple_shader = Shader::new(
+        "../shaders/simple_textured.vert",
+        "../shaders/simple_textured.frag",
+    )
+    .unwrap();
 
     let sphere_shader =
         Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
@@ -295,7 +304,7 @@ fn main() {
                     unsafe {
                         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                     }
-                    let (view, projection) = cam.to_vp();
+  /*                  let (view, projection) = cam.to_vp();
                     sphere_shader.bind();
                     sphere_shader.set_uniform_mat4f("projection", &projection);
                     sphere_shader.set_uniform_mat4f("view", &view);
@@ -358,7 +367,13 @@ fn main() {
                     skybox_shader.set_texture_slot("skybox", &0);
                     skybox_texture.set_slot(&0);
 
-                    draw_skybox(&skybox_va);
+                    draw_skybox(&skybox_va);*/
+
+                    let(quad_va, quad_vb) = create_quad_buffers();
+                    simple_shader.bind();
+                    simple_shader.set_uniform_1i("texture_map", &0);
+                    lut_texture.set_slot(&0);
+                    draw_quad(&quad_va);
 
                     windowed_context.swap_buffers().unwrap();
 

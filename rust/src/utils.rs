@@ -209,3 +209,28 @@ pub fn draw_skybox(va: &VertexArray) {
         gl::DepthFunc(gl::LESS);
     }
 }
+
+pub fn create_quad_buffers() -> (VertexArray, VertexBuffer) {
+    #[rustfmt::skip]
+    const VERTICES: [f32; 4* 5] = [
+        -1.0,  1.0, 0.0,    0.0, 1.0,
+        -1.0, -1.0, 0.0,    0.0, 0.0,
+         1.0,  1.0, 0.0,    1.0, 1.0,
+         1.0, -1.0, 0.0,    1.0, 0.0,
+    ];
+    let va = VertexArray::new();
+    va.bind();
+    let vb = VertexBuffer::new_static(&VERTICES);
+    vb.bind();
+    const STRIDE: i32 = 5;
+    va.set_vertex_attrib_array(0, 3, false, STRIDE, 0);
+    va.set_vertex_attrib_array(1, 2, false, STRIDE, 3);
+    (va, vb)
+}
+
+pub fn draw_quad(va: &VertexArray) {
+    va.bind();
+    unsafe {
+        gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
+    }
+}
