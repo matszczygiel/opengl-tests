@@ -113,16 +113,20 @@ fn main() {
 
         gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+
+        gl::Enable(gl::TEXTURE_CUBE_MAP_SEAMLESS);
     }
 
     let (skybox_va, _skybox_vb) = create_skybox_buffers();
     let skybox_shader = Shader::new("../shaders/skybox.vert", "../shaders/skybox.frag").unwrap();
 
+    const ENV_MAP_FACE_RESOLUTION: i32 = 1024;
     let skybox_texture =
-        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", 1024)
+        TextureCubeMap::new_from_hdr("../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr", ENV_MAP_FACE_RESOLUTION)
             .unwrap();
 
     let irradiance_map = compute_irradiance_map(&skybox_texture);
+    let prefiltered_env_map = compute_prefiltered_env_map(&skybox_texture, ENV_MAP_FACE_RESOLUTION);
 
     let sphere_shader =
         Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
