@@ -135,18 +135,13 @@ fn main() {
     let prefiltered_env_map = compute_prefiltered_env_map(&skybox_texture, ENV_MAP_FACE_RESOLUTION);
     let lut_texture = compute_lut_texture(512);
 
-    let simple_shader = Shader::new(
-        "../shaders/simple_textured.vert",
-        "../shaders/simple_textured.frag",
-    )
-    .unwrap();
-
-
     let sphere_shader =
         Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
     sphere_shader.set_uniform_3f("albedo", &vec3(0.5, 0.5, 0.5));
     sphere_shader.set_uniform_1f("ao", &1.0);
     sphere_shader.set_uniform_1i("irradiance_map", &0);
+    sphere_shader.set_uniform_1i("prefiltered_map", &1);
+    sphere_shader.set_uniform_1i("brdf_lut", &2);
 
     let light_positions = [
         Vector3::<f32> {
@@ -309,13 +304,15 @@ fn main() {
                     unsafe {
                         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                     }
-                    /*                  let (view, projection) = cam.to_vp();
+                                     let (view, projection) = cam.to_vp();
                     sphere_shader.bind();
                     sphere_shader.set_uniform_mat4f("projection", &projection);
                     sphere_shader.set_uniform_mat4f("view", &view);
                     let cam_pos = cam.position.to_homogeneous().truncate();
                     sphere_shader.set_uniform_3f("world_cam_posiiton", &cam_pos);
                     irradiance_map.set_slot(&0);
+                    prefiltered_env_map.set_slot(&1);
+                    lut_texture.set_slot(&2);
 
                     for i in 0..light_positions.len() {
                         sphere_shader.set_uniform_3f(
@@ -372,13 +369,7 @@ fn main() {
                     skybox_shader.set_texture_slot("skybox", &0);
                     skybox_texture.set_slot(&0);
 
-                    draw_skybox(&skybox_va);*/
-
-                    let (quad_va, _quad_vb) = create_quad_buffers();
-                   simple_shader.bind();
-                    simple_shader.set_uniform_1i("texture_map", &0);
-                    lut_texture.set_slot(&0);
-                    draw_quad(&quad_va);
+                    draw_skybox(&skybox_va);
 
                     windowed_context.swap_buffers().unwrap();
 

@@ -11,6 +11,8 @@ uniform float metallic;
 uniform float roughness;
 uniform float ao;
 uniform samplerCube irradiance_map;
+uniform samplerCube prefiltered_map;
+uniform sampler2D brdf_lut;
 
 uniform vec3 world_cam_posiiton;
 
@@ -44,6 +46,7 @@ vec3 fresnel_schlick(float cos_theta, vec3 F0){
 void main() {
     vec3 N = normalize(world_normal);
     vec3 V = normalize(world_cam_posiiton - world_position);
+    vec3 R = reflect(-V, N);
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
@@ -85,12 +88,19 @@ void main() {
     kd *= (1.0 - metallic);
 
     vec3 irradiance = texture(irradiance_map, N).rgb;
-    vec3 ambient = kd * irradiance * albedo * ao;
+    vec3 diffuse = kd * irradiance * albedo;
+
+    const float MAX_REFLECTION_LOD = 4;
+    float lod_level = roughness * MAX_REFLECTION_LOD;
+    vec3 prefiltered_color = textureLod(prefiltered_map, R, lod_level).rgb;
+    vec2 brdf = texture(brdf_lut, vec2(n_dot_v, roughness)).rg;
+    vec3 specular = prefiltered_color * (ks * brdf.x + brdf.y);
+    
+    vec3 ambient = (diffuse  + specular) * ao;
 
     vec3 color = ambient + Lo;
 
     color /= (color + vec3(1.0));
-
     color = pow(color, vec3(1.0/2.2));
     
     fragment_color = vec4(color, 1.0);
