@@ -66,7 +66,7 @@ fn main() {
         ContextBuilder::new()
             .with_vsync(true)
             //.with_srgb(false)
-            //.with_multisampling(4)
+            .with_multisampling(4)
             .with_gl(GlRequest::Latest)
             .with_gl_profile(GlProfile::Core)
             .build_windowed(wb, &el)
@@ -127,6 +127,7 @@ fn main() {
     const ENV_MAP_FACE_RESOLUTION: i32 = 1024;
     let skybox_texture = TextureCubeMap::new_from_hdr(
         "../resources/Factory_Catwalk/Factory_Catwalk_2k.hdr",
+        //"../resources/newport_loft.hdr",
         ENV_MAP_FACE_RESOLUTION,
     )
     .unwrap();
@@ -136,58 +137,13 @@ fn main() {
     let lut_texture = compute_lut_texture(512);
 
     let sphere_shader =
-        Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
+        Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr_ibl.frag").unwrap();
     sphere_shader.set_uniform_3f("albedo", &vec3(0.5, 0.5, 0.5));
     sphere_shader.set_uniform_1f("ao", &1.0);
     sphere_shader.set_uniform_1i("irradiance_map", &0);
     sphere_shader.set_uniform_1i("prefiltered_map", &1);
     sphere_shader.set_uniform_1i("brdf_lut", &2);
 
-    let light_positions = [
-        Vector3::<f32> {
-            x: -10.0,
-            y: 10.0,
-            z: 10.0,
-        },
-        Vector3::<f32> {
-            x: 10.0,
-            y: 10.0,
-            z: 10.0,
-        },
-        Vector3::<f32> {
-            x: -10.0,
-            y: -10.0,
-            z: 10.0,
-        },
-        Vector3::<f32> {
-            x: 10.0,
-            y: -10.0,
-            z: 10.0,
-        },
-    ];
-
-    let light_colors = [
-        Vector3::<f32> {
-            x: 150.0,
-            y: 150.0,
-            z: 150.0,
-        },
-        Vector3::<f32> {
-            x: 150.0,
-            y: 150.0,
-            z: 150.0,
-        },
-        Vector3::<f32> {
-            x: 150.0,
-            y: 150.0,
-            z: 150.0,
-        },
-        Vector3::<f32> {
-            x: 150.0,
-            y: 150.0,
-            z: 150.0,
-        },
-    ];
 
     let (sphere_va, _sphere_vb, sphere_ib) = crate_sphere_buffers(1.0);
 
@@ -314,15 +270,6 @@ fn main() {
                     prefiltered_env_map.set_slot(&1);
                     lut_texture.set_slot(&2);
 
-                    for i in 0..light_positions.len() {
-                        sphere_shader.set_uniform_3f(
-                            &format!("light_positions[{}]", i),
-                            &light_positions[i],
-                        );
-                        sphere_shader
-                            .set_uniform_3f(&format!("light_colors[{}]", i), &light_colors[i]);
-                    }
-
                     const ROWS: i32 = 7;
                     const COLS: i32 = 7;
                     const SPACING: f32 = 2.5;
@@ -345,26 +292,8 @@ fn main() {
                         }
                     }
 
-                    for i in 0..light_positions.len() {
-                        let model = Matrix4::<f32>::from_translation(light_positions[i])
-                            * Matrix4::<f32>::from_scale(0.5);
-
-                        sphere_shader.set_uniform_mat4f("model", &model);
-                        draw_sphere(&sphere_ib, &sphere_va);
-                    }
-                    let skybox_view = {
-                        let mut v = view.clone();
-                        v[3][0] = 0.0;
-                        v[3][1] = 0.0;
-                        v[3][2] = 0.0;
-                        v[3][3] = 0.0;
-                        v[0][3] = 0.0;
-                        v[1][3] = 0.0;
-                        v[2][3] = 0.0;
-                        v
-                    };
                     skybox_shader.bind();
-                    skybox_shader.set_uniform_mat4f("view", &skybox_view);
+                    skybox_shader.set_uniform_mat4f("view", &view);
                     skybox_shader.set_uniform_mat4f("projection", &projection);
                     skybox_shader.set_texture_slot("skybox", &0);
                     skybox_texture.set_slot(&0);

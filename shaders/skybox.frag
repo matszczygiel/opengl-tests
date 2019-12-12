@@ -5,8 +5,7 @@ in vec3 tex_coord;
 
 uniform samplerCube skybox;
 
-void main()
-{    
+void main() {    
     vec3 color = texture(skybox, tex_coord).rgb;
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2)); 
