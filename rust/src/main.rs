@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate cgmath;
 extern crate gl;
 extern crate glutin;
@@ -63,7 +65,8 @@ fn main() {
     let windowed_context = unsafe {
         ContextBuilder::new()
             .with_vsync(true)
-            //            .with_srgb(false)
+            //.with_srgb(false)
+            //.with_multisampling(4)
             .with_gl(GlRequest::Latest)
             .with_gl_profile(GlProfile::Core)
             .build_windowed(wb, &el)
@@ -109,6 +112,7 @@ fn main() {
 
         gl::Enable(gl::DEPTH_TEST);
         gl::DepthFunc(gl::LESS);
+        
         gl::Enable(gl::CULL_FACE);
 
         gl::Enable(gl::BLEND);
@@ -136,6 +140,7 @@ fn main() {
         "../shaders/simple_textured.frag",
     )
     .unwrap();
+
 
     let sphere_shader =
         Shader::new("../shaders/sphere_pbr.vert", "../shaders/sphere_pbr.frag").unwrap();
@@ -304,7 +309,7 @@ fn main() {
                     unsafe {
                         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                     }
-  /*                  let (view, projection) = cam.to_vp();
+                    /*                  let (view, projection) = cam.to_vp();
                     sphere_shader.bind();
                     sphere_shader.set_uniform_mat4f("projection", &projection);
                     sphere_shader.set_uniform_mat4f("view", &view);
@@ -369,8 +374,8 @@ fn main() {
 
                     draw_skybox(&skybox_va);*/
 
-                    let(quad_va, quad_vb) = create_quad_buffers();
-                    simple_shader.bind();
+                    let (quad_va, _quad_vb) = create_quad_buffers();
+                   simple_shader.bind();
                     simple_shader.set_uniform_1i("texture_map", &0);
                     lut_texture.set_slot(&0);
                     draw_quad(&quad_va);

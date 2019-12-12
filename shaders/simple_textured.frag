@@ -5,5 +5,7 @@ in vec2 texture_uv;
 uniform sampler2D texture_map;
 
 void main() {
-    fragment_color = vec4(texture(texture_map, texture_uv).rg, 0.0, 1.0);
+    vec3 color = texture(texture_map, texture_uv).rgb;
+    
+    fragment_color = vec4(color, 1.0);
 }
