@@ -15,7 +15,7 @@ void main() {
     up         = cross(N, right);
     
     vec3 irradiance = vec3(0.0);   
-    float sample_delta = 0.005;
+    float sample_delta = 0.025;
     int n_samples = 0;
     for(float phi = 0.0; phi < 2.0 * PI; phi += sample_delta) {
         for(float theta = 0.0; theta < 0.5 * PI; theta += sample_delta) {

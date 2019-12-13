@@ -62,18 +62,20 @@ fn setup_texture_from_hdr_file(filename: &str) -> Result<(u32, u32), String> {
     let decoder = hdr::HDRDecoder::new(BufReader::new(file))
         .map_err(|_| format!("Cannot create HDRdecoder for: {}", filename))?;
     let meta = decoder.metadata();
-    let data = decoder
-        .read_image_hdr()
-        .map_err(|_| format!("Cannot read file: {}", filename))?;
-//    let data_raw = data
-//        .into_iter()
-//        .map(|p| Vec::from(p.channels()))
-//        .flatten()
-//        .collect::<Vec<f32>>();
-    //let mut image_buf =
-    //    ImageBuffer::<Rgb<f32>, Vec<f32>>::from_vec(meta.width, meta.height, data as Vec<f32>)
-    //        .ok_or("Failed to create image buffer")?;
-    //imageops::flip_vertical(&mut image_buf);
+    let buffer = {
+        let data = decoder
+            .read_image_hdr()
+            .map_err(|_| format!("Cannot read file: {}", filename))?;
+        let data_raw = data
+            .into_iter()
+            .map(|p| Vec::from(p.channels()))
+            .flatten()
+            .collect::<Vec<f32>>();
+        let image_buf =
+            ImageBuffer::<Rgb<f32>, Vec<f32>>::from_vec(meta.width, meta.height, data_raw)
+                .ok_or("Failed to create image buffer")?;
+        imageops::flip_vertical(&image_buf)
+    };
 
     unsafe {
         gl::TexImage2D(
@@ -85,7 +87,7 @@ fn setup_texture_from_hdr_file(filename: &str) -> Result<(u32, u32), String> {
             0,
             gl::RGB,
             gl::FLOAT,
-            data.as_ptr() as *const std::ffi::c_void,
+            buffer.into_raw().as_ptr() as *const std::ffi::c_void,
         );
     }
     Ok((meta.width, meta.height))
@@ -336,14 +338,13 @@ impl TextureCubeMap {
             gl::TexParameteri(
                 gl::TEXTURE_CUBE_MAP,
                 gl::TEXTURE_MIN_FILTER,
-                gl::LINEAR as i32,
+                gl::LINEAR_MIPMAP_LINEAR as i32,
             );
             gl::TexParameteri(
                 gl::TEXTURE_CUBE_MAP,
                 gl::TEXTURE_MAG_FILTER,
                 gl::LINEAR as i32,
             );
-            gl::GenerateMipmap(gl::TEXTURE_CUBE_MAP);
         }
 
         let conversion_shader =
