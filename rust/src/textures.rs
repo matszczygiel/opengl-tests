@@ -65,6 +65,15 @@ fn setup_texture_from_hdr_file(filename: &str) -> Result<(u32, u32), String> {
     let data = decoder
         .read_image_hdr()
         .map_err(|_| format!("Cannot read file: {}", filename))?;
+//    let data_raw = data
+//        .into_iter()
+//        .map(|p| Vec::from(p.channels()))
+//        .flatten()
+//        .collect::<Vec<f32>>();
+    //let mut image_buf =
+    //    ImageBuffer::<Rgb<f32>, Vec<f32>>::from_vec(meta.width, meta.height, data as Vec<f32>)
+    //        .ok_or("Failed to create image buffer")?;
+    //imageops::flip_vertical(&mut image_buf);
 
     unsafe {
         gl::TexImage2D(
