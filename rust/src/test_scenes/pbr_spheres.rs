@@ -10,7 +10,7 @@ use crate::shaders::*;
 use crate::textures::*;
 use crate::utils::*;
 
-struct PbrSpheres<'a> {
+pub struct PbrSpheres {
     skybox: (VertexArray, VertexBuffer, Shader, TextureCubeMap),
     spheres: (VertexArray, VertexBuffer, IndexBuffer, Shader),
     pbr_setup: (TextureCubeMap, TextureCubeMap, Texture2D),
@@ -19,10 +19,10 @@ struct PbrSpheres<'a> {
     moving_down: bool,
     moving_right: bool,
     moving_left: bool,
-    framebuffer_size: &'a (u32, u32),
+    framebuffer_size: (u32, u32),
 }
 
-impl<'a> PbrSpheres<'a> {
+impl PbrSpheres {
     const ENV_MAP_FACE_RESOLUTION: i32 = 1024;
     const LUT_TEXTURE_RESOLUTION: i32 = 512;
 
@@ -31,8 +31,8 @@ impl<'a> PbrSpheres<'a> {
     const MOUSE_SPEED: f32 = 0.002;
 }
 
-impl<'a> TestScene for PbrSpheres<'a> {
-    fn new(framebuffer_size: &'a(u32, u32)) -> Box<dyn TestScene + 'a> {
+impl TestScene for PbrSpheres {
+    fn new(framebuffer_size: (u32, u32)) -> Box<dyn TestScene> {
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
             gl::DepthFunc(gl::LESS);
@@ -52,6 +52,11 @@ impl<'a> TestScene for PbrSpheres<'a> {
         .unwrap();
 
         Box::new(Self {
+            pbr_setup: (
+                compute_irradiance_map(&skybox_texture),
+                compute_prefiltered_env_map(&skybox_texture, Self::ENV_MAP_FACE_RESOLUTION),
+                compute_lut_texture(Self::LUT_TEXTURE_RESOLUTION),
+            ),
             skybox: {
                 let (va, vb) = create_skybox_buffers();
                 let shader =
@@ -73,23 +78,29 @@ impl<'a> TestScene for PbrSpheres<'a> {
                 shader.set_uniform_1i("brdf_lut", &2);
                 (va, vb, ib, shader)
             },
-            pbr_setup: (
-                compute_irradiance_map(&skybox_texture),
-                compute_prefiltered_env_map(&skybox_texture, Self::ENV_MAP_FACE_RESOLUTION),
-                compute_lut_texture(Self::LUT_TEXTURE_RESOLUTION),
-            ),
-            cam: Camera::new_default(framebuffer_size.0 as f32, framebuffer_size.1 as f32),
+            cam: {
+                let mut c =
+                    Camera::new_default(framebuffer_size.0 as f32, framebuffer_size.1 as f32);
+                c.position.z = 5.0;
+                c
+            },
             moving_up: false,
             moving_down: false,
             moving_right: false,
             moving_left: false,
-            framebuffer_size: &framebuffer_size,
-        }) as Box<dyn TestScene + 'a>
+            framebuffer_size,
+        })
     }
 
-    fn reset(&mut self) {}
+    fn reset(&mut self) {
+        self.cam = Camera::new_default(
+            self.framebuffer_size.0 as f32,
+            self.framebuffer_size.1 as f32,
+        );
+        self.cam.position.z = 5.0;
+    }
 
-    fn handle_event(&mut self, event: &Event<()>, control_flow: &mut ControlFlow) {
+    fn handle_event(&mut self, event: &Event<()>, _: &mut ControlFlow) {
         match event {
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
@@ -205,9 +216,22 @@ impl<'a> TestScene for PbrSpheres<'a> {
 
         draw_skybox(&self.skybox.0);
     }
+
+    fn set_framebuffer_size(&mut self, size: (u32, u32)) {
+        self.framebuffer_size = size;
+
+        unsafe {
+            gl::Viewport(
+                0,
+                0,
+                self.framebuffer_size.0 as i32,
+                self.framebuffer_size.1 as i32,
+            );
+        }
+    }
 }
 
-impl<'a> Drop for PbrSpheres<'a> {
+impl Drop for PbrSpheres {
     fn drop(&mut self) {
         unsafe {
             gl::Disable(gl::DEPTH_TEST);

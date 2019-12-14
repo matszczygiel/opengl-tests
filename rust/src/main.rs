@@ -81,11 +81,6 @@ fn main() {
     window.set_cursor_visible(false);
     window.set_cursor_grab(true).unwrap();
 
-    let mut framebuffer_size: (u32, u32) = window
-        .inner_size()
-        .to_physical(window.hidpi_factor())
-        .into();
-
     println!("{:?}", windowed_context.get_pixel_format());
 
     unsafe {
@@ -110,22 +105,21 @@ fn main() {
         );
     }
 
-    let test_app = TestApp::new(&framebuffer_size);
-
-    let mut cam = Camera::new_default(WIDTH, HEIGHT);
-    cam.position.z = 5.0;
-
     let mut window_focused = true;
+    let mut test_app = TestApp::new(
+        window
+            .inner_size()
+            .to_physical(window.hidpi_factor())
+            .into(),
+    );
 
-    unsafe {
-        gl::Viewport(0, 0, framebuffer_size.0 as i32, framebuffer_size.1 as i32);
-    }
+    test_app.register::<PbrSpheres>("PBR Spheres", VirtualKeyCode::Key1);
 
     let mut time = Instant::now();
     let mut delta_t = time.elapsed();
 
     use event::*;
-    el.run(move |event, _, control_flow| {
+    el.run(move |event, _, mut control_flow| {
         *control_flow = event_loop::ControlFlow::Poll;
         match event {
             Event::LoopDestroyed => return,
@@ -135,7 +129,7 @@ fn main() {
                     let dpi_factor = windowed_context.window().hidpi_factor();
                     let size = logical_size.to_physical(dpi_factor);
                     windowed_context.resize(size);
-                    framebuffer_size = size.into();
+                    test_app.set_framebuffer_size(size.into());
                 }
                 WindowEvent::Focused(f) => {
                     window_focused = *f;

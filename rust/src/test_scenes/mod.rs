@@ -10,25 +10,41 @@ use std::time::Duration;
 use glutin::event::*;
 use glutin::event_loop::*;
 
-pub struct TestApp<'a> {
-    current_test: Option<Box<dyn TestScene + 'a>>,
-    framebuffer_size: &'a (u32, u32),
-    scenes_map: HashMap<VirtualKeyCode, (String, fn(&'a (u32, u32)) -> Box<dyn TestScene + 'a>)>,
+pub struct TestApp {
+    current_test: Option<Box<dyn TestScene>>,
+    scenes_map: HashMap<VirtualKeyCode, (String, fn((u32, u32)) -> Box<dyn TestScene>)>,
+    framebuffer_size: (u32, u32),
 }
 
-impl<'a> TestApp<'a> {
-    pub fn new(framebuffer_size: &'a (u32, u32)) -> Self {
+impl TestApp {
+    pub fn new(framebuffer_size: (u32, u32)) -> Self {
         let mut res = Self {
             current_test: None,
-            framebuffer_size,
             scenes_map: HashMap::new(),
+            framebuffer_size: (0, 0),
         };
         res.reset();
+        res.set_framebuffer_size(framebuffer_size);
         res
     }
 
-    fn register<T: TestScene>(&mut self, name: &str, key: VirtualKeyCode) {
+    pub fn register<T: TestScene>(&mut self, name: &str, key: VirtualKeyCode) {
         self.scenes_map.insert(key, (name.to_string(), T::new));
+    }
+
+    pub fn set_framebuffer_size(&mut self, size: (u32, u32)) {
+        self.framebuffer_size = size;
+        match &mut self.current_test {
+            Some(test) => test.set_framebuffer_size(size),
+            None => unsafe {
+                gl::Viewport(
+                    0,
+                    0,
+                    self.framebuffer_size.0 as i32,
+                    self.framebuffer_size.1 as i32,
+                );
+            },
+        }
     }
 
     fn print_map(&self) {
@@ -96,12 +112,13 @@ impl<'a> TestApp<'a> {
     }
 }
 
-trait TestScene {
-    fn new<'a>(framebuffer_size: &'a(u32, u32)) -> Box<dyn TestScene + 'a>
+pub trait TestScene {
+    fn new(framebuffer_size: (u32, u32)) -> Box<dyn TestScene>
     where
         Self: Sized;
     fn reset(&mut self);
     fn handle_event(&mut self, event: &Event<()>, control_flow: &mut ControlFlow);
     fn update(&mut self, delta: Duration);
     fn render(&self);
+    fn set_framebuffer_size(&mut self, size: (u32, u32));
 }
