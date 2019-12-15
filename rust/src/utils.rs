@@ -1,8 +1,13 @@
 extern crate cgmath;
+extern crate obj;
 
 use crate::buffers::*;
 
 use cgmath::*;
+use obj::*;
+
+use std::fs::File;
+use std::io::BufReader;
 
 pub fn crate_sphere_buffers(radius: f32) -> (VertexArray, VertexBuffer, IndexBuffer) {
     const X_SEGMENTS: u32 = 64;
@@ -232,5 +237,53 @@ pub fn draw_quad(va: &VertexArray) {
     va.bind();
     unsafe {
         gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
+    }
+}
+
+pub fn load_model(obj_filename: &str) -> Result<(VertexArray, VertexBuffer, IndexBuffer), String> {
+    let input = BufReader::new(
+        File::open(obj_filename).map_err(|_| format!("Failed to load model: {}", obj_filename))?,
+    );
+    let model: Obj<TexturedVertex, u32> =
+        load_obj(input).map_err(|_| format!("Failed to parse model: {}", obj_filename))?;
+    let va = VertexArray::new();
+    va.bind();
+    let vertices: Vec<f32> = model
+        .vertices
+        .into_iter()
+        .flat_map(|v| {
+            vec![
+                v.position[0],
+                v.position[1],
+                v.position[2],
+                v.normal[0],
+                v.normal[1],
+                v.normal[2],
+                v.texture[0],
+                v.texture[1],
+            ]
+        })
+        .collect();
+    let vb = VertexBuffer::new_static(&vertices);
+    vb.bind();
+    const STRIDE: i32 = 3 + 3 + 2;
+    va.set_vertex_attrib_array(0, 3, false, STRIDE, 0);
+    va.set_vertex_attrib_array(1, 3, false, STRIDE, 3);
+    va.set_vertex_attrib_array(2, 2, false, STRIDE, 6);
+    let ib = IndexBuffer::new_static(&model.indices);
+    ib.bind();
+    Ok((va, vb, ib))
+}
+
+pub fn draw_model(sphere_ib: &IndexBuffer, sphere_va: &VertexArray) {
+    sphere_va.bind();
+    sphere_ib.bind();
+    unsafe {
+        gl::DrawElements(
+            gl::TRIANGLES,
+            sphere_ib.count() as i32,
+            gl::UNSIGNED_INT,
+            std::ptr::null(),
+        );
     }
 }

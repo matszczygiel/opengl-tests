@@ -3,9 +3,9 @@
 extern crate cgmath;
 extern crate gl;
 extern crate glutin;
-extern crate wavefront_obj;
 #[macro_use]
 extern crate lazy_static;
+extern crate obj;
 
 mod buffers;
 mod camera;
@@ -115,6 +115,7 @@ fn main() {
 
     test_app.register::<PbrSpheres>("PBR Spheres", VirtualKeyCode::Key1);
     test_app.register::<PbrTexturedSpheres>("PBR Textured Spheres", VirtualKeyCode::Key2);
+    test_app.register::<PbrGlock>("PBR Glock", VirtualKeyCode::Key3);
 
     let mut time = Instant::now();
     let mut delta_t = time.elapsed();
