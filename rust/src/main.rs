@@ -79,6 +79,7 @@ fn main() {
     let window = windowed_context.window();
     window.set_cursor_visible(false);
     window.set_cursor_grab(true).unwrap();
+    let mut lock_mouse = true;
 
     println!("{:?}", windowed_context.get_pixel_format());
 
@@ -132,21 +133,14 @@ fn main() {
                 }
                 WindowEvent::Focused(f) => {
                     window_focused = *f;
-                    if window_focused {
-                        windowed_context.window().set_cursor_grab(true).ok();
-                        windowed_context.window().set_cursor_visible(false);
-                    } else {
-                        windowed_context.window().set_cursor_grab(false).ok();
-                        windowed_context.window().set_cursor_visible(true);
-                    }
                 }
                 WindowEvent::MouseInput {
                     state: ElementState::Pressed,
                     ..
                 } => {
-                    windowed_context.window().set_cursor_grab(true).ok();
-                    windowed_context.window().set_cursor_visible(false);
-                    window_focused = true;
+                    windowed_context.window().set_cursor_grab(!lock_mouse).ok();
+                    windowed_context.window().set_cursor_visible(lock_mouse);
+                    lock_mouse = !lock_mouse;
                 }
                 WindowEvent::RedrawRequested => {
                     test_app.update(delta_t);

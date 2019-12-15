@@ -52,11 +52,14 @@ impl TestScene for PbrSpheres {
         .unwrap();
 
         let mut res = Box::new(Self {
-            pbr_setup: (
-                compute_irradiance_map(&skybox_texture),
-                compute_prefiltered_env_map(&skybox_texture, Self::ENV_MAP_FACE_RESOLUTION),
-                compute_lut_texture(Self::LUT_TEXTURE_RESOLUTION),
-            ),
+            pbr_setup: {
+                let irr = compute_irradiance_map(&skybox_texture);
+                let pref =
+                    compute_prefiltered_env_map(&skybox_texture, Self::ENV_MAP_FACE_RESOLUTION);
+
+                let lut = compute_lut_texture(Self::LUT_TEXTURE_RESOLUTION);
+                (irr, pref, lut)
+            },
             skybox: {
                 let (va, vb) = create_skybox_buffers();
                 let shader =

@@ -1,5 +1,5 @@
 #version 330 core
-out vec2 fragment_color;
+out vec4 fragment_color;
 in vec2 texture_uv;
 
 const float PI = 3.14159265359;
@@ -83,5 +83,5 @@ vec2 integrate_brdf(float n_dot_v, float roughness) {
 }
 
 void main() {
-    fragment_color = integrate_brdf(texture_uv.x, texture_uv.y);
+    fragment_color = vec4(integrate_brdf(texture_uv.x, texture_uv.y), 0.0, 1.0);
 }
