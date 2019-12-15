@@ -39,6 +39,10 @@ vec3 fresnel_schlick(float cos_theta, vec3 F0){
     return F0 + (1.0 - F0) * pow(1.0 - cos_theta, 5.0);
 }
 
+vec3 fresnel_schlick_roughness(float cos_theta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cos_theta, 5.0);
+}  
+
 void main() {
     vec3 N = normalize(world_normal);
     vec3 V = normalize(world_cam_posiiton - world_position);
@@ -49,7 +53,7 @@ void main() {
 
     float n_dot_v = max(dot(N, V), 0.0);
 
-    vec3 ks = fresnel_schlick(n_dot_v, F0);
+    vec3 ks = fresnel_schlick_roughness(n_dot_v, F0, roughness);
     vec3 kd = 1.0 - ks;
     kd *= (1.0 - metallic);
 
