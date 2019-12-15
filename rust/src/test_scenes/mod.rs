@@ -3,6 +3,8 @@ extern crate glutin;
 
 pub mod pbr_spheres;
 pub use pbr_spheres::*;
+pub mod pbr_textured_spheres;
+pub use pbr_textured_spheres::*;
 
 use std::collections::HashMap;
 use std::time::Duration;

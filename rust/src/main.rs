@@ -114,6 +114,7 @@ fn main() {
     );
 
     test_app.register::<PbrSpheres>("PBR Spheres", VirtualKeyCode::Key1);
+    test_app.register::<PbrTexturedSpheres>("PBR Textured Spheres", VirtualKeyCode::Key2);
 
     let mut time = Instant::now();
     let mut delta_t = time.elapsed();
