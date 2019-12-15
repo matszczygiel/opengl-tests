@@ -51,7 +51,7 @@ impl TestScene for PbrSpheres {
         )
         .unwrap();
 
-        Box::new(Self {
+        let mut res = Box::new(Self {
             pbr_setup: (
                 compute_irradiance_map(&skybox_texture),
                 compute_prefiltered_env_map(&skybox_texture, Self::ENV_MAP_FACE_RESOLUTION),
@@ -78,18 +78,18 @@ impl TestScene for PbrSpheres {
                 shader.set_uniform_1i("brdf_lut", &2);
                 (va, vb, ib, shader)
             },
-            cam: {
-                let mut c =
-                    Camera::new_default(framebuffer_size.0 as f32, framebuffer_size.1 as f32);
-                c.position.z = 5.0;
-                c
-            },
+            cam: Camera::new_default(0.0, 0.0),
             moving_up: false,
             moving_down: false,
             moving_right: false,
             moving_left: false,
             framebuffer_size,
-        })
+        });
+        unsafe {
+            gl::Viewport(0, 0, framebuffer_size.0 as i32, framebuffer_size.1 as i32);
+        }
+        res.reset();
+        res
     }
 
     fn reset(&mut self) {
@@ -156,18 +156,20 @@ impl TestScene for PbrSpheres {
     }
 
     fn update(&mut self, delta: Duration) {
+        let mut vel = vec3(0.0, 0.0, 0.0);
         if self.moving_up {
-            self.cam.position += self.cam.direction() * delta.as_micros() as f32 * Self::CAM_SPEED;
+            vel += self.cam.direction();
         }
         if self.moving_down {
-            self.cam.position -= self.cam.direction() * delta.as_micros() as f32 * Self::CAM_SPEED;
+            vel -= self.cam.direction();
         }
         if self.moving_right {
-            self.cam.position += self.cam.right() * delta.as_micros() as f32 * Self::CAM_SPEED;
+            vel += self.cam.right();
         }
         if self.moving_left {
-            self.cam.position -= self.cam.right() * delta.as_micros() as f32 * Self::CAM_SPEED;
+            vel -= self.cam.right();
         }
+        self.cam.position += vel * delta.as_micros() as f32 * Self::CAM_SPEED;
     }
 
     fn render(&self) {

@@ -67,19 +67,25 @@ impl TestApp {
         match event {
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                    Some(VirtualKeyCode::Escape) => match &mut self.current_test {
+                    Some(VirtualKeyCode::Back) => match &mut self.current_test {
+                        None => (),
                         Some(_) => {
                             self.current_test = None;
                             self.reset();
                         }
-                        None => *control_flow = ControlFlow::Exit,
                     },
+                    Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
                     Some(VirtualKeyCode::R) => {
                         self.reset();
-                        self.print_map();
+                        if self.current_test.is_none() {
+                            self.print_map();
+                        }
                     }
                     Some(key) => match self.scenes_map.get(&key) {
-                        Some((_, fun)) => self.current_test = Some(fun(self.framebuffer_size)),
+                        Some((_, fun)) => match self.current_test {
+                            Some(_) => (),
+                            None => self.current_test = Some(fun(self.framebuffer_size)),
+                        },
                         None => (),
                     },
                     _ => (),

@@ -39,9 +39,8 @@ extern "system" fn debug_callback(
 ) {
     print!("GL CALLBACK: ");
     if gltype == gl::DEBUG_TYPE_ERROR {
-        print!("** GL ERROR **");
+        print!("(ERROR!) ");
     }
-
     unsafe {
         println!(
             " type = {0}, severity = {1}, message = {2:?}",
