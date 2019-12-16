@@ -22,7 +22,6 @@ fn load_texture_from_image(
     image: DynamicImage,
     texture_type: gl::types::GLenum,
 ) -> Result<(), String> {
-    image.flipv();
     let format = match image {
         ImageRgb8(_) => (gl::RGB8, gl::RGB),
         ImageRgba8(_) => (gl::RGBA8, gl::RGBA),
@@ -47,6 +46,7 @@ fn load_texture_from_image(
 
 fn setup_texture_from_image(filename: &str, texture_type: gl::types::GLenum) -> Result<(), String> {
     let image = open(filename).map_err(|_| format!("failed to load image: {}", filename))?;
+    let image = image.flipv();
     load_texture_from_image(image, texture_type)?;
     Ok(())
 }

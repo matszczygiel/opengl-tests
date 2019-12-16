@@ -256,11 +256,11 @@ pub fn load_model(obj_filename: &str) -> Result<(VertexArray, VertexBuffer, Inde
                 v.position[0],
                 v.position[1],
                 v.position[2],
+                v.texture[0],
+                v.texture[1],
                 v.normal[0],
                 v.normal[1],
                 v.normal[2],
-                v.texture[0],
-                v.texture[1],
             ]
         })
         .collect();
@@ -268,8 +268,8 @@ pub fn load_model(obj_filename: &str) -> Result<(VertexArray, VertexBuffer, Inde
     vb.bind();
     const STRIDE: i32 = 3 + 3 + 2;
     va.set_vertex_attrib_array(0, 3, false, STRIDE, 0);
-    va.set_vertex_attrib_array(1, 3, false, STRIDE, 3);
-    va.set_vertex_attrib_array(2, 2, false, STRIDE, 6);
+    va.set_vertex_attrib_array(1, 2, false, STRIDE, 3);
+    va.set_vertex_attrib_array(2, 3, false, STRIDE, 5);
     let ib = IndexBuffer::new_static(&model.indices);
     ib.bind();
     Ok((va, vb, ib))

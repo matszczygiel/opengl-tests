@@ -30,6 +30,24 @@ impl PbrGlock {
     const CAM_SPEED: f32 = 0.00003;
     const FOV_SPEED: f32 = 1.05;
     const MOUSE_SPEED: f32 = 0.002;
+
+    fn reload_shader(&mut self) {
+        let shader = Shader::new(
+            "../shaders/sphere_pbr.vert",
+            "../shaders/sphere_textured_pbr_ibl.frag",
+        )
+        .unwrap();
+        shader.set_uniform_1i("irradiance_map", &0);
+        shader.set_uniform_1i("prefiltered_map", &1);
+        shader.set_uniform_1i("brdf_lut", &2);
+
+        shader.set_uniform_1i("albedo_map", &3);
+        shader.set_uniform_1i("normal_map", &4);
+        shader.set_uniform_1i("metallic_map", &5);
+        shader.set_uniform_1i("roughness_map", &6);
+        shader.set_uniform_1i("ao_map", &7);
+        self.glock.3 = shader;
+    }
 }
 
 impl TestScene for PbrGlock {
@@ -75,7 +93,7 @@ impl TestScene for PbrGlock {
                     (albedo, normal, metallic, roughness, ao)
                 };
 
-                generate_from_path("..//resources/glock/textures")
+                generate_from_path("../resources/glock/textures")
             },
             skybox: {
                 let (va, vb) = create_skybox_buffers();
@@ -85,7 +103,7 @@ impl TestScene for PbrGlock {
                 (va, vb, shader, skybox_texture)
             },
             glock: {
-                let (va, vb, ib) = load_model("../resources/glock/Glock_17.obj").unwrap();
+                let (va, vb, ib) = load_model("../resources/glock/glock.obj").unwrap();
                 let shader = Shader::new(
                     "../shaders/sphere_pbr.vert",
                     "../shaders/sphere_textured_pbr_ibl.frag",
@@ -123,6 +141,7 @@ impl TestScene for PbrGlock {
             self.framebuffer_size.1 as f32,
         );
         self.cam.position.z = 5.0;
+        self.reload_shader();
     }
 
     fn handle_event(&mut self, event: &Event<()>, _: &mut ControlFlow) {
