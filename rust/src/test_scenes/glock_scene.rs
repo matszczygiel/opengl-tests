@@ -70,6 +70,13 @@ impl TestScene for PbrGlock {
         )
         .unwrap();
 
+        let (document, buffers, images) =
+            gltf::import("../resources/glock/gun-pbribl.gltf").unwrap();
+
+        let mesh = document.meshes().nth(0).unwrap();
+        let material = mesh.primitives().nth(0).unwrap().material();
+        let gl_primitive = mesh.primitives().nth(0).unwrap().mode().as_gl_enum();
+
         let mut res = Box::new(Self {
             ibl_setup: {
                 let irr = compute_irradiance_map(&skybox_texture);

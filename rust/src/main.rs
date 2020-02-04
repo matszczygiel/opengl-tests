@@ -6,6 +6,7 @@ extern crate glutin;
 #[macro_use]
 extern crate lazy_static;
 extern crate obj;
+extern crate gltf;
 
 mod buffers;
 mod camera;
