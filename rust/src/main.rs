@@ -106,12 +106,7 @@ fn main() {
     }
 
     let mut window_focused = true;
-    let mut test_app = TestApp::new(
-        window
-            .inner_size()
-            .to_physical(window.hidpi_factor())
-            .into(),
-    );
+    let mut test_app = TestApp::new(window.inner_size().into());
 
     test_app.register::<PbrSpheres>("PBR Spheres", VirtualKeyCode::Key1);
     test_app.register::<PbrTexturedSpheres>("PBR Textured Spheres", VirtualKeyCode::Key2);
@@ -127,11 +122,10 @@ fn main() {
             Event::LoopDestroyed => return,
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = event_loop::ControlFlow::Exit,
-                WindowEvent::Resized(logical_size) => {
-                    let dpi_factor = windowed_context.window().hidpi_factor();
-                    let size = logical_size.to_physical(dpi_factor);
-                    windowed_context.resize(size);
-                    test_app.set_framebuffer_size(size.into());
+                WindowEvent::Resized(size) => {
+                    windowed_context.resize(size.clone());
+
+                    test_app.set_framebuffer_size((size.width, size.height));
                 }
                 WindowEvent::Focused(f) => {
                     window_focused = *f;
@@ -144,18 +138,18 @@ fn main() {
                     windowed_context.window().set_cursor_visible(lock_mouse);
                     lock_mouse = !lock_mouse;
                 }
-                WindowEvent::RedrawRequested => {
-                    test_app.update(delta_t);
-                    test_app.render();
-
-                    windowed_context.swap_buffers().unwrap();
-
-                    delta_t = time.elapsed();
-                    time = Instant::now();
-                    //println!("Time: {}ms", delta_t.as_micros() as f32 / 1000.0);
-                }
                 _ => (),
             },
+            Event::RedrawRequested(_) => {
+                test_app.update(delta_t);
+                test_app.render();
+
+                windowed_context.swap_buffers().unwrap();
+
+                delta_t = time.elapsed();
+                time = Instant::now();
+                println!("Time: {}ms", delta_t.as_micros() as f32 / 1000.0);
+            }
             _ => (),
         }
 
